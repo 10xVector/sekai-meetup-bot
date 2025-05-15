@@ -3,6 +3,8 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { config } = require('dotenv');
 const OpenAI = require('openai');
+const schedule = require('node-schedule');
+const Parser = require('rss-parser');
 
 config();
 
@@ -63,11 +65,50 @@ Do not include greetings, lesson titles, or number the sections.`
         .setDescription(reply)
         .setFooter({ text: 'Use !smalltalk again for a new one!' });
 
-      message.reply({ embeds: [embed] });
+      await message.reply({ embeds: [embed] });
+
+      // Extract the theme or question for the image prompt
+      const themeMatch = reply.match(/❓ Question:\nJP: (.*?)\n/);
+      const imagePrompt = themeMatch ? `An illustration representing: ${themeMatch[1]}` : 'Japanese-English language small talk illustration';
+
+      // Generate image with OpenAI
+      const imageResponse = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt: imagePrompt,
+        n: 1,
+        size: '1024x1024'
+      });
+      const imageUrl = imageResponse.data[0].url;
+
+      // Send the image
+      await message.channel.send({ files: [imageUrl] });
     } catch (err) {
       console.error('Error fetching from OpenAI:', err);
-      message.reply('Sorry, something went wrong while generating the small talk prompt.');
+      message.reply('Sorry, something went wrong while generating the small talk prompt or image.');
     }
+  }
+
+  if (message.content === '!meetups') {
+    const events = await fetchMeetupEvents();
+
+    if (events.length === 0) {
+      return message.reply('No upcoming meetups scheduled!');
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00AE86)
+      .setTitle('📅 Upcoming Meetups')
+      .setDescription(events.map(meetup => 
+        `**${meetup.title}**\n📅 ${new Date(meetup.date).toLocaleString()}\n📍 ${meetup.location}\n🔗 [View on Meetup](${meetup.link})\n`
+      ).join('\n'));
+
+    message.reply({ embeds: [embed] });
+  }
+
+  if (message.content === '!sync') {
+    message.reply('Syncing Meetup events...');
+    const events = await syncMeetupEvents(message.channel.id);
+    message.reply(`✅ Found ${events.length} upcoming events! Reminders will be sent 1 hour before each event.`);
   }
 });
 
