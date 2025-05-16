@@ -27,8 +27,13 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 module.exports = function generateCardImage(smalltalkText) {
-  // Parse the smalltalkText into blocks
-  const blocks = smalltalkText.split(/\n\n/);
+  // Remove emojis and rename 'Fill-in-the-Blank' to 'Example'
+  let processedText = smalltalkText
+    .replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu, '') // Remove emojis
+    .replace(/✍️\s*Fill-in-the-Blank:/g, 'Example:');
+
+  // Parse the processedText into blocks
+  const blocks = processedText.split(/\n\n/);
   const width = 800;
   const height = 600;
   const canvas = createCanvas(width, height);
