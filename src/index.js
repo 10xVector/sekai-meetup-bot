@@ -5,6 +5,7 @@ const { config } = require('dotenv');
 const OpenAI = require('openai');
 const schedule = require('node-schedule');
 const Parser = require('rss-parser');
+const generateCardImage = require('./cardImage');
 
 config();
 
@@ -67,23 +68,11 @@ Do not include greetings, lesson titles, or number the sections.`
 
       await message.reply({ embeds: [embed] });
 
-      // Extract the theme or question for the image prompt
-      const themeMatch = reply.match(/❓ Question:\nJP: (.*?)\n/);
-      const imagePrompt = themeMatch ? `An illustration representing: ${themeMatch[1]}` : 'Japanese-English language small talk illustration';
-
-      // Generate image with OpenAI
-      const imageResponse = await openai.images.generate({
-        model: 'dall-e-3',
-        prompt: imagePrompt,
-        n: 1,
-        size: '1024x1024'
-      });
-      const imageUrl = imageResponse.data[0].url;
-
-      // Send the image
-      await message.channel.send({ files: [imageUrl] });
+      // Generate the card image from the smalltalk text
+      const imageBuffer = generateCardImage(reply);
+      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
     } catch (err) {
-      console.error('Error fetching from OpenAI:', err);
+      console.error('Error fetching from OpenAI or generating image:', err);
       message.reply('Sorry, something went wrong while generating the small talk prompt or image.');
     }
   }
