@@ -1,4 +1,5 @@
 const { createCanvas, registerFont } = require('canvas');
+registerFont(__dirname + '/../fonts/NotoSansJP-Regular.ttf', { family: 'NotoSansJP' });
 
 // Optionally, register a custom font here if you want
 // registerFont('path/to/font.ttf', { family: 'CustomFont' });
@@ -107,7 +108,7 @@ module.exports = function generateCardImage(smalltalkText) {
   ctx.stroke();
 
   // "Sekai Meetup" text in header
-  ctx.font = 'bold 40px sans-serif';
+  ctx.font = 'bold 40px NotoSansJP';
   ctx.fillStyle = '#222';
   ctx.textAlign = 'center';
   ctx.fillText('Sekai Meetup', width / 2, 55);
@@ -124,13 +125,13 @@ module.exports = function generateCardImage(smalltalkText) {
   const contentWidth = width - 2 * leftPad;
 
   // Title
-  ctx.font = 'bold 32px sans-serif';
+  ctx.font = 'bold 32px NotoSansJP';
   ctx.fillStyle = '#222';
   ctx.fillText("Today's small talk", leftPad, y);
   y += 48;
 
   // Draw each block (as in previous logic, but with more spacing)
-  ctx.font = '22px sans-serif';
+  ctx.font = '22px NotoSansJP';
   for (const block of blocks) {
     const lines = block.split('\n');
     for (let i = 0; i < lines.length; i++) {
