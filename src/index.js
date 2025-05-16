@@ -14,6 +14,9 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
+// Placeholder for quiz channel
+const QUIZ_CHANNEL_ID = 'YOUR_CHANNEL_ID_HERE';
+
 client.once('ready', () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
@@ -98,6 +101,88 @@ Do not include greetings, lesson titles, or number the sections.`
     message.reply('Syncing Meetup events...');
     const events = await syncMeetupEvents(message.channel.id);
     message.reply(`✅ Found ${events.length} upcoming events! Reminders will be sent 1 hour before each event.`);
+  }
+
+  if (message.content === '!quiz') {
+    try {
+      const quiz = await generateComprehensionQuiz();
+      // Extract the Japanese paragraph and options
+      const jpMatch = quiz.match(/JP:\s*(.+)/);
+      const options = [];
+      for (const letter of ['A', 'B', 'C', 'D']) {
+        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+        if (optMatch) options.push(optMatch[1]);
+      }
+      const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
+      // Send a native poll
+      const pollMessage = await message.channel.send({
+        content: `**Daily Quiz**\n${question}`,
+        poll: {
+          question: { text: 'What is the most accurate English meaning?' },
+          answers: options.map(opt => ({ text: opt.slice(0, 55) }))
+        }
+      });
+    } catch (err) {
+      console.error('Error generating quiz:', err);
+      message.reply('Sorry, something went wrong while generating the quiz.');
+    }
+  }
+});
+
+// Helper to generate a comprehension quiz using OpenAI
+async function generateComprehensionQuiz() {
+  const quizPrompt = `You are a Japanese language comprehension quiz generator.
+Write a short Japanese paragraph (3-4 sentences).
+Then provide 4 English options (A, B, C, D) for its meaning. 
+Make the options very similar, but only one is fully accurate. The others should have subtle distinctions (e.g., tense, subject, detail) that make them incorrect.
+Each English option must be 55 characters or fewer.
+After the options, state the correct answer and a brief explanation.
+
+Format:
+JP: <paragraph>
+A) <option 1>
+B) <option 2>
+C) <option 3>
+D) <option 4>
+Answer: <A/B/C/D>
+Explanation: <why>
+`;
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [
+      { role: 'system', content: quizPrompt },
+      { role: 'user', content: 'Generate a new quiz.' }
+    ]
+  });
+  return completion.choices[0].message.content;
+}
+
+// Scheduled daily quiz
+schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
+  try {
+    const quiz = await generateComprehensionQuiz();
+    const channel = client.channels.cache.get(QUIZ_CHANNEL_ID);
+    if (!channel) return;
+    const embed = new EmbedBuilder()
+      .setColor(0x00AE86)
+      .setTitle('📝 Japanese Comprehension Quiz')
+      .setDescription(quiz.split('Answer:')[0].trim())
+      .setFooter({ text: 'Vote with 🇦 🇧 🇨 🇩! Answer will be revealed soon.' });
+    const sent = await channel.send({ embeds: [embed] });
+    await sent.react('🇦');
+    await sent.react('🇧');
+    await sent.react('🇨');
+    await sent.react('🇩');
+    // Reveal answer after 2 minutes
+    setTimeout(async () => {
+      const answerMatch = quiz.match(/Answer:\s*([A-D])/);
+      const explanationMatch = quiz.match(/Explanation:(.*)$/s);
+      let answer = answerMatch ? answerMatch[1] : 'Unknown';
+      let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+      await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+    }, 2 * 60 * 1000);
+  } catch (err) {
+    console.error('Error generating scheduled quiz:', err);
   }
 });
 
