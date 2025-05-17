@@ -1,13 +1,50 @@
 // index.js
 
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const { config } = require('dotenv');
 const OpenAI = require('openai');
 const schedule = require('node-schedule');
 const Parser = require('rss-parser');
 const generateCardImage = require('./cardImage');
+const textToSpeech = require('@google-cloud/text-to-speech');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 config();
+
+// Initialize Google Cloud credentials from environment variable if available
+if (process.env.GOOGLE_CREDENTIALS) {
+  try {
+    // Debug: Log the first few characters of the credentials
+    console.log('GOOGLE_CREDENTIALS starts with:', process.env.GOOGLE_CREDENTIALS.substring(0, 50));
+    
+    // Clean the credentials string
+    const cleanedCredentials = process.env.GOOGLE_CREDENTIALS
+      .trim()
+      .replace(/,\s*,/g, ',')  // Remove double commas
+      .replace(/,\s*}/g, '}')  // Remove trailing commas
+      .replace(/{\s*,/g, '{')  // Remove leading commas
+      .replace(/\n/g, '\\n');  // Properly escape newlines
+    
+    const credentials = JSON.parse(cleanedCredentials);
+    
+    // Create a temporary credentials file
+    const tempDir = os.tmpdir();
+    const credentialsPath = path.join(tempDir, 'google-credentials.json');
+    fs.writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2));
+    
+    // Set the environment variable to point to the credentials file
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
+    
+    console.log('Google Cloud credentials initialized successfully');
+  } catch (error) {
+    console.error('Error parsing GOOGLE_CREDENTIALS:', error.message);
+    console.error('Please ensure GOOGLE_CREDENTIALS is a valid JSON string');
+    // Debug: Log the full credentials string
+    console.error('Raw GOOGLE_CREDENTIALS:', process.env.GOOGLE_CREDENTIALS);
+  }
+}
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
@@ -16,6 +53,17 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // Placeholder for quiz channel
 const QUIZ_CHANNEL_ID = process.env.QUIZ_CHANNEL_ID;
+
+const ttsClient = new textToSpeech.TextToSpeechClient();
+
+async function getTTSBuffer(text) {
+  const [response] = await ttsClient.synthesizeSpeech({
+    input: { text },
+    voice: { languageCode: 'ja-JP', ssmlGender: 'FEMALE' },
+    audioConfig: { audioEncoding: 'MP3' },
+  });
+  return Buffer.from(response.audioContent, 'binary');
+}
 
 client.once('ready', () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
@@ -114,9 +162,17 @@ Do not include greetings, lesson titles, or number the sections.`
         if (optMatch) options.push(optMatch[1]);
       }
       const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
-      // Send a native poll
-      const pollMessage = await message.channel.send({
+      
+      // First send the audio file
+      const audioBuffer = await getTTSBuffer(question);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
+      await message.channel.send({
         content: `**Daily Quiz**\n${question}`,
+        files: [audioAttachment]
+      });
+
+      // Then send the poll separately
+      await message.channel.send({
         poll: {
           question: { text: 'What is the most accurate English meaning?' },
           answers: options.map(opt => ({ text: opt.slice(0, 55) }))
