@@ -188,7 +188,7 @@ Do not include greetings, lesson titles, or number the sections.`
 // Helper to generate a comprehension quiz using OpenAI
 async function generateComprehensionQuiz() {
   const quizPrompt = `You are a Japanese language comprehension quiz generator.
-Write a short Japanese paragraph (3-4 sentences).
+Write a short Japanese paragraph (1-2 sentences).
 Then provide 4 English options (A, B, C, D) for its meaning. 
 Make the options very similar, but only one is fully accurate. The others should have subtle distinctions (e.g., tense, subject, detail) that make them incorrect.
 Each English option must be 55 characters or fewer.
