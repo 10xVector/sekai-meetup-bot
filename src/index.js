@@ -15,7 +15,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // Placeholder for quiz channel
-const QUIZ_CHANNEL_ID = 'YOUR_CHANNEL_ID_HERE';
+const QUIZ_CHANNEL_ID = process.env.QUIZ_CHANNEL_ID;
 
 client.once('ready', () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
