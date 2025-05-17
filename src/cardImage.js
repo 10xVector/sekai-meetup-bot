@@ -35,12 +35,48 @@ module.exports = function generateCardImage(smalltalkText) {
   // Parse the processedText into blocks
   const blocks = processedText.split(/\n\n/);
   const width = 800;
-  const height = 600;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
+  const baseHeight = 600;
+  const headerHeight = Math.floor(baseHeight / 3);
+  const leftPad = 50;
+  const contentWidth = width - 2 * leftPad;
+  const titleHeight = 48;
+  const blockSpacing = 32;
+  const lineHeight = 32;
 
-  // Layout dimensions
-  const headerHeight = Math.floor(height / 3);
+  // --- First pass: measure required height ---
+  // Create a temp canvas for measurement
+  const tempCanvas = createCanvas(width, baseHeight);
+  const tempCtx = tempCanvas.getContext('2d');
+  let y = headerHeight + 50 + titleHeight; // Start after header and title
+  tempCtx.font = '22px NotoSansJP';
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      // Estimate wrapped lines
+      let words = lines[i].split(' ');
+      let line = '';
+      for (let n = 0; n < words.length; n++) {
+        let testLine = line + words[n] + ' ';
+        let metrics = tempCtx.measureText(testLine);
+        let testWidth = metrics.width;
+        if (testWidth > contentWidth && n > 0) {
+          y += lineHeight;
+          line = words[n] + ' ';
+        } else {
+          line = testLine;
+        }
+      }
+      y += lineHeight; // Last line
+    }
+    y += blockSpacing;
+  }
+  // Add space for header, title, and border
+  let totalHeight = y + 50;
+  if (totalHeight < baseHeight) totalHeight = baseHeight;
+
+  // --- Now create the real canvas ---
+  const canvas = createCanvas(width, totalHeight);
+  const ctx = canvas.getContext('2d');
 
   // Header background (blue)
   ctx.fillStyle = '#A3C9F9';
@@ -60,52 +96,41 @@ module.exports = function generateCardImage(smalltalkText) {
     ctx.fill();
     ctx.restore();
   }
-  // Draw a few clouds at different positions
   drawCloud(width / 2 - 120, headerHeight / 2 - 30, 1.1);
   drawCloud(width / 2 + 100, headerHeight / 2 - 40, 0.9);
   drawCloud(width / 2 - 40, headerHeight / 2 + 50, 0.7);
 
   // Main content background (warm light yellow)
   ctx.fillStyle = '#FFF9E3';
-  ctx.fillRect(0, headerHeight, width, height - headerHeight);
+  ctx.fillRect(0, headerHeight, width, totalHeight - headerHeight);
 
   // --- Header Illustration: Earth Mascot with Happy Face ---
-  // Earth position and size (centered in header)
   const mascotRadius = 60;
   const mascotX = width / 2;
   const mascotY = headerHeight / 2 + 10;
-
-  // Draw earth (circle)
   ctx.beginPath();
   ctx.arc(mascotX, mascotY, mascotRadius, 0, 2 * Math.PI);
   ctx.closePath();
-  ctx.fillStyle = '#6A9CFD'; // Blue for water
+  ctx.fillStyle = '#6A9CFD';
   ctx.fill();
   ctx.lineWidth = 3;
-  ctx.strokeStyle = '#4CB050'; // Green outline for land
+  ctx.strokeStyle = '#4CB050';
   ctx.stroke();
-
-  // Draw simple land shapes (just a couple of blobs)
   ctx.beginPath();
   ctx.ellipse(mascotX - 20, mascotY, 18, 10, Math.PI / 6, 0, 2 * Math.PI);
   ctx.ellipse(mascotX + 15, mascotY + 20, 12, 8, -Math.PI / 4, 0, 2 * Math.PI);
   ctx.fillStyle = '#4CB050';
   ctx.fill();
-
-  // Draw happy face
-  // Eyes
   ctx.beginPath();
   ctx.arc(mascotX - 18, mascotY - 10, 6, 0, 2 * Math.PI);
   ctx.arc(mascotX + 18, mascotY - 10, 6, 0, 2 * Math.PI);
   ctx.fillStyle = '#222';
   ctx.fill();
-  // Eye highlights
   ctx.beginPath();
   ctx.arc(mascotX - 16, mascotY - 12, 2, 0, 2 * Math.PI);
   ctx.arc(mascotX + 20, mascotY - 12, 2, 0, 2 * Math.PI);
   ctx.fillStyle = '#fff';
   ctx.fill();
-  // Smile
   ctx.beginPath();
   ctx.arc(mascotX, mascotY + 5, 18, Math.PI / 8, Math.PI - Math.PI / 8);
   ctx.lineWidth = 3;
@@ -120,30 +145,24 @@ module.exports = function generateCardImage(smalltalkText) {
   ctx.textAlign = 'start';
 
   // Border around the whole card
-  ctx.strokeStyle = '#FFC857'; // Gold border
+  ctx.strokeStyle = '#FFC857';
   ctx.lineWidth = 4;
-  ctx.strokeRect(20, 20, width - 40, height - 40);
+  ctx.strokeRect(20, 20, width - 40, totalHeight - 40);
 
   // --- Main Content Section ---
-  let y = headerHeight + 50;
-  const leftPad = 50;
-  const contentWidth = width - 2 * leftPad;
-
-  // Title
+  y = headerHeight + 50;
   ctx.font = 'bold 32px NotoSansJP';
   ctx.fillStyle = '#222';
   ctx.fillText("Today's small talk", leftPad, y);
-  y += 48;
-
-  // Draw each block (as in previous logic, but with more spacing)
+  y += titleHeight;
   ctx.font = '22px NotoSansJP';
   for (const block of blocks) {
     const lines = block.split('\n');
     for (let i = 0; i < lines.length; i++) {
       ctx.fillStyle = '#222';
-      y = wrapText(ctx, lines[i], leftPad, y, contentWidth, 32);
+      y = wrapText(ctx, lines[i], leftPad, y, contentWidth, lineHeight);
     }
-    y += 32;
+    y += blockSpacing;
   }
 
   return canvas.toBuffer('image/png');
