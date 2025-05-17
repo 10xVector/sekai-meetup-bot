@@ -171,11 +171,18 @@ Do not include greetings, lesson titles, or number the sections.`
         files: [audioAttachment]
       });
 
-      // Then send the poll separately
+      // Send the options as a message with a., b., c., d.
+      const optionLabels = ['a', 'b', 'c', 'd'];
+      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+      await message.channel.send(
+        `**Options:**\n${optionsText}`
+      );
+
+      // Send the poll with just a, b, c, d as options
       await message.channel.send({
         poll: {
           question: { text: 'What is the most accurate English meaning?' },
-          answers: options.map(opt => ({ text: opt.slice(0, 55) }))
+          answers: optionLabels.map(label => ({ text: label }))
         }
       });
     } catch (err) {
@@ -188,10 +195,9 @@ Do not include greetings, lesson titles, or number the sections.`
 // Helper to generate a comprehension quiz using OpenAI
 async function generateComprehensionQuiz() {
   const quizPrompt = `You are a Japanese language comprehension quiz generator.
-Write a short Japanese paragraph (1-2 sentences).
+Write a short Japanese paragraph.
 Then provide 4 English options (A, B, C, D) for its meaning. 
 Make the options very similar, but only one is fully accurate. The others should have subtle distinctions (e.g., tense, subject, detail) that make them incorrect.
-Each English option must be 55 characters or fewer.
 After the options, state the correct answer and a brief explanation.
 
 Format:
