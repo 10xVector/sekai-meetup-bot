@@ -75,7 +75,7 @@ client.on('messageCreate', async message => {
   if (message.content === '!smalltalk') {
     try {
       const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -195,13 +195,13 @@ Do not include greetings, lesson titles, or number the sections.`
 // Helper to generate a comprehension quiz using OpenAI
 async function generateComprehensionQuiz() {
   const quizPrompt = `You are a Japanese language comprehension quiz generator.
-Write a short Japanese paragraph about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+Write a single Japanese sentence about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 Then provide 4 English options (A, B, C, D) for its meaning. 
-Make the options very similar, but only one is fully accurate. The others should have subtle distinctions (e.g., tense, subject, detail) that make them incorrect.
+Each English option should represent the meaning of the entire Japanese sentence, not just part of it. Make the options a mix of subtle and more obvious distinctions (e.g., tense, subject, detail, or even a completely different activity or location for one or two options). Only one option should be fully accurate.
 After the options, state the correct answer and a brief explanation.
 
 Format:
-JP: <paragraph>
+JP: <sentence>
 A) <option 1>
 B) <option 2>
 C) <option 3>
@@ -210,7 +210,7 @@ Answer: <A/B/C/D>
 Explanation: <why>
 `;
   const completion = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4o',
     messages: [
       { role: 'system', content: quizPrompt },
       { role: 'user', content: 'Generate a new quiz.' }
