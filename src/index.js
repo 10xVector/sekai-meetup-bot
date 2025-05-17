@@ -81,7 +81,7 @@ client.on('messageCreate', async message => {
             role: 'system',
             content: `You are a language tutor generating a Japanese-English small talk activity formatted like a classroom practice card.
 
-Stick to one cohesive theme per card (e.g., food, travel, hobbies, weather).
+Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
 
 Format the response into exactly 3 clearly separated blocks (using \n\n):
 
@@ -195,7 +195,7 @@ Do not include greetings, lesson titles, or number the sections.`
 // Helper to generate a comprehension quiz using OpenAI
 async function generateComprehensionQuiz() {
   const quizPrompt = `You are a Japanese language comprehension quiz generator.
-Write a short Japanese paragraph.
+Write a short Japanese paragraph about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 Then provide 4 English options (A, B, C, D) for its meaning. 
 Make the options very similar, but only one is fully accurate. The others should have subtle distinctions (e.g., tense, subject, detail) that make them incorrect.
 After the options, state the correct answer and a brief explanation.
