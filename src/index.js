@@ -190,6 +190,57 @@ Do not include greetings, lesson titles, or number the sections.`
       message.reply('Sorry, something went wrong while generating the quiz.');
     }
   }
+
+  if (message.content === '!forcescheduledquiz') {
+    try {
+      const quiz = await generateComprehensionQuiz();
+      const channel = client.channels.cache.get(QUIZ_CHANNEL_ID);
+      if (!channel) return;
+      // Extract the Japanese sentence and options
+      const jpMatch = quiz.match(/JP:\s*(.+)/);
+      const options = [];
+      for (const letter of ['A', 'B', 'C', 'D']) {
+        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+        if (optMatch) options.push(optMatch[1]);
+      }
+      const question = jpMatch ? jpMatch[1] : 'Japanese sentence';
+
+      // Send the audio file
+      const audioBuffer = await getTTSBuffer(question);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
+      await channel.send({
+        content: `**Daily Quiz**\n${question}`,
+        files: [audioAttachment]
+      });
+
+      // Send the options as a message with a., b., c., d.
+      const optionLabels = ['a', 'b', 'c', 'd'];
+      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+      await channel.send(
+        `**Options:**\n${optionsText}`
+      );
+
+      // Send the poll with just a, b, c, d as options
+      await channel.send({
+        poll: {
+          question: { text: 'What is the most accurate English meaning?' },
+          answers: optionLabels.map(label => ({ text: label }))
+        }
+      });
+
+      // Reveal answer after 6 hours (21600000 ms)
+      setTimeout(async () => {
+        const answerMatch = quiz.match(/Answer:\s*([A-D])/);
+        const explanationMatch = quiz.match(/Explanation:(.*)$/s);
+        let answer = answerMatch ? answerMatch[1] : 'Unknown';
+        let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+        await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+      }, 6 * 60 * 60 * 1000); // 6 hours
+    } catch (err) {
+      console.error('Error generating forced scheduled quiz:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled quiz.');
+    }
+  }
 });
 
 // Helper to generate a comprehension quiz using OpenAI
@@ -225,24 +276,46 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     const quiz = await generateComprehensionQuiz();
     const channel = client.channels.cache.get(QUIZ_CHANNEL_ID);
     if (!channel) return;
-    const embed = new EmbedBuilder()
-      .setColor(0x00AE86)
-      .setTitle('📝 Japanese Comprehension Quiz')
-      .setDescription(quiz.split('Answer:')[0].trim())
-      .setFooter({ text: 'Vote with 🇦 🇧 🇨 🇩! Answer will be revealed soon.' });
-    const sent = await channel.send({ embeds: [embed] });
-    await sent.react('🇦');
-    await sent.react('🇧');
-    await sent.react('🇨');
-    await sent.react('🇩');
-    // Reveal answer after 2 minutes
+    // Extract the Japanese sentence and options
+    const jpMatch = quiz.match(/JP:\s*(.+)/);
+    const options = [];
+    for (const letter of ['A', 'B', 'C', 'D']) {
+      const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+      if (optMatch) options.push(optMatch[1]);
+    }
+    const question = jpMatch ? jpMatch[1] : 'Japanese sentence';
+
+    // Send the audio file
+    const audioBuffer = await getTTSBuffer(question);
+    const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
+    await channel.send({
+      content: `**Daily Quiz**\n${question}`,
+      files: [audioAttachment]
+    });
+
+    // Send the options as a message with a., b., c., d.
+    const optionLabels = ['a', 'b', 'c', 'd'];
+    let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+    await channel.send(
+      `**Options:**\n${optionsText}`
+    );
+
+    // Send the poll with just a, b, c, d as options
+    const pollMsg = await channel.send({
+      poll: {
+        question: { text: 'What is the most accurate English meaning?' },
+        answers: optionLabels.map(label => ({ text: label }))
+      }
+    });
+
+    // Reveal answer after 6 hours (21600000 ms)
     setTimeout(async () => {
       const answerMatch = quiz.match(/Answer:\s*([A-D])/);
       const explanationMatch = quiz.match(/Explanation:(.*)$/s);
       let answer = answerMatch ? answerMatch[1] : 'Unknown';
       let explanation = explanationMatch ? explanationMatch[1].trim() : '';
       await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
-    }, 2 * 60 * 1000);
+    }, 6 * 60 * 60 * 1000); // 6 hours
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
   }
