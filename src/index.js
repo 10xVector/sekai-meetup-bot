@@ -57,11 +57,56 @@ const SMALLTALK_CHANNEL_IDS = process.env.SMALLTALK_CHANNEL_IDS?.split(',') || [
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
+// Available Japanese voices for rotation
+const JAPANESE_VOICES = [
+  {
+    name: 'ja-JP-Chirp3-HD-Achird',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'FEMALE'
+  },
+  {
+    name: 'ja-JP-Chirp3-HD-Callirrhoe',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'FEMALE'
+  },
+  {
+    name: 'ja-JP-Chirp3-HD-lapetus',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'MALE'
+  },
+  {
+    name: 'ja-JP-Chirp3-HD-Gacrux',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'MALE'
+  },
+  {
+    name: 'ja-JP-Chirp3-HD-Despina',
+    speakingRate: 0.9,
+    pitch: 0,
+    ssmlGender: 'FEMALE'
+  }
+];
+
 async function getTTSBuffer(text) {
+  // Randomly select a voice from the available options
+  const selectedVoice = JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
+  
   const [response] = await ttsClient.synthesizeSpeech({
     input: { text },
-    voice: { languageCode: 'ja-JP', ssmlGender: 'FEMALE' },
-    audioConfig: { audioEncoding: 'MP3' },
+    voice: { 
+      languageCode: 'ja-JP',
+      name: selectedVoice.name,
+      ssmlGender: selectedVoice.ssmlGender
+    },
+    audioConfig: { 
+      audioEncoding: 'MP3',
+      speakingRate: selectedVoice.speakingRate,
+      pitch: selectedVoice.pitch
+    },
   });
   return Buffer.from(response.audioContent, 'binary');
 }
