@@ -72,7 +72,7 @@ const JAPANESE_VOICES = [
     ssmlGender: 'FEMALE'
   },
   {
-    name: 'ja-JP-Chirp3-HD-lapetus',
+    name: 'ja-JP-Chirp3-HD-Sadachbia',
     speakingRate: 1.0,
     pitch: 0,
     ssmlGender: 'MALE'
@@ -357,13 +357,13 @@ Do not include greetings, lesson titles, or number the sections.`
 // Helper to generate a comprehension quiz using OpenAI
 async function generateComprehensionQuiz() {
   const quizPrompt = `You are a Japanese language comprehension quiz generator.
-Write a single Japanese sentence about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+Generate a Japanese paragraph (3 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 Then provide 4 English options (A, B, C, D) for its meaning. 
-Each English option should represent the meaning of the entire Japanese sentence, not just part of it. Make the options a mix of subtle and more obvious distinctions (e.g., tense, subject, detail, or even a completely different activity or location for one or two options). Only one option should be fully accurate.
+Each English option should represent the meaning of the entire Japanese paragraph, not just part of it. Make the options a mix of subtle and more obvious distinctions (e.g., tense, subject, detail, or even a completely different activity or location for one or two options). Only one option should be fully accurate.
 After the options, state the correct answer and a brief explanation.
 
 Format:
-JP: <sentence>
+JP: <paragraph>
 A) <option 1>
 B) <option 2>
 C) <option 3>
