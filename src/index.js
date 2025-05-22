@@ -53,6 +53,7 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // Placeholder for quiz channel
 const QUIZ_CHANNEL_ID = process.env.QUIZ_CHANNEL_ID;
+const SMALLTALK_CHANNEL_IDS = process.env.SMALLTALK_CHANNEL_IDS?.split(',') || [];
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
@@ -209,7 +210,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const audioBuffer = await getTTSBuffer(question);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
       await channel.send({
-        content: `**Daily Quiz**\n${question}`,
+        content: `@here **Daily Quiz**\n${question}`,
         files: [audioAttachment]
       });
 
@@ -221,12 +222,21 @@ Do not include greetings, lesson titles, or number the sections.`
       );
 
       // Send the poll with just a, b, c, d as options
-      await channel.send({
+      const pollMsg = await channel.send({
         poll: {
           question: { text: 'What is the most accurate English meaning?' },
           answers: optionLabels.map(label => ({ text: label }))
         }
       });
+
+      // Close poll after 5 hours and 50 minutes (21000000 ms)
+      setTimeout(async () => {
+        try {
+          await pollMsg.end();
+        } catch (err) {
+          console.error('Error ending poll:', err);
+        }
+      }, 5 * 60 * 60 * 1000 + 50 * 60 * 1000); // 5 hours and 50 minutes
 
       // Reveal answer after 6 hours (21600000 ms)
       setTimeout(async () => {
@@ -239,6 +249,62 @@ Do not include greetings, lesson titles, or number the sections.`
     } catch (err) {
       console.error('Error generating forced scheduled quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled quiz.');
+    }
+  }
+
+  if (message.content === '!forcescheduledsmalltalk') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a language tutor generating a Japanese-English small talk activity formatted like a classroom practice card.
+
+Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
+
+Format the response into exactly 3 clearly separated blocks (using \n\n):
+
+❓ Question:
+JP: <natural Japanese question related to the theme>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+✍️ Fill-in-the-Blank:
+JP: <Japanese sentence with a blank or missing part (use ___)>  
+Romaji: <Romaji version with blank>  
+EN: <English sentence with blank>
+
+💬 Example Answer:
+JP: <Completed Japanese sentence using a realistic word in the blank>  
+Romaji: <Romaji version>  
+EN: <Natural English translation>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese-English language small talk prompt.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the smalltalk text
+      const imageBuffer = generateCardImage(reply);
+
+      // Send to all configured smalltalk channels
+      for (const channelId of SMALLTALK_CHANNEL_IDS) {
+        const channel = client.channels.cache.get(channelId);
+        if (channel) {
+          await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
+        }
+      }
+      message.reply('✅ Weekly smalltalk has been sent to all configured channels!');
+    } catch (err) {
+      console.error('Error generating forced scheduled smalltalk:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled smalltalk.');
     }
   }
 });
@@ -289,7 +355,7 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     const audioBuffer = await getTTSBuffer(question);
     const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
     await channel.send({
-      content: `**Daily Quiz**\n${question}`,
+      content: `@here **Daily Quiz**\n${question}`,
       files: [audioAttachment]
     });
 
@@ -308,6 +374,15 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
       }
     });
 
+    // Close poll after 5 hours and 50 minutes (21000000 ms)
+    setTimeout(async () => {
+      try {
+        await pollMsg.end();
+      } catch (err) {
+        console.error('Error ending poll:', err);
+      }
+    }, 5 * 60 * 60 * 1000 + 50 * 60 * 1000); // 5 hours and 50 minutes
+
     // Reveal answer after 6 hours (21600000 ms)
     setTimeout(async () => {
       const answerMatch = quiz.match(/Answer:\s*([A-D])/);
@@ -318,6 +393,61 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     }, 6 * 60 * 60 * 1000); // 6 hours
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
+  }
+});
+
+// Scheduled weekly smalltalk
+schedule.scheduleJob('0 1 * * 1', async () => { // Every Monday at 10:00 AM JST (01:00 UTC)
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a language tutor generating a Japanese-English small talk activity formatted like a classroom practice card.
+
+Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
+
+Format the response into exactly 3 clearly separated blocks (using \n\n):
+
+❓ Question:
+JP: <natural Japanese question related to the theme>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+✍️ Fill-in-the-Blank:
+JP: <Japanese sentence with a blank or missing part (use ___)>  
+Romaji: <Romaji version with blank>  
+EN: <English sentence with blank>
+
+💬 Example Answer:
+JP: <Completed Japanese sentence using a realistic word in the blank>  
+Romaji: <Romaji version>  
+EN: <Natural English translation>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me a Japanese-English language small talk prompt.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the smalltalk text
+    const imageBuffer = generateCardImage(reply);
+
+    // Send to all configured smalltalk channels
+    for (const channelId of SMALLTALK_CHANNEL_IDS) {
+      const channel = client.channels.cache.get(channelId);
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
+      }
+    }
+  } catch (err) {
+    console.error('Error generating scheduled smalltalk:', err);
   }
 });
 
