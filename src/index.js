@@ -274,23 +274,19 @@ Do not include greetings, lesson titles, or number the sections.`
         }
       });
 
-      // Close poll after 5 hours and 50 minutes (21000000 ms)
+      // Close poll and reveal answer after 23 hours (82800000 ms)
       setTimeout(async () => {
         try {
           await pollMsg.end();
+          const answerMatch = quiz.match(/Answer:\s*([A-D])/);
+          const explanationMatch = quiz.match(/Explanation:(.*)$/s);
+          let answer = answerMatch ? answerMatch[1] : 'Unknown';
+          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+          await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
         } catch (err) {
-          console.error('Error ending poll:', err);
+          console.error('Error ending poll or revealing answer:', err);
         }
-      }, 5 * 60 * 60 * 1000 + 50 * 60 * 1000); // 5 hours and 50 minutes
-
-      // Reveal answer after 6 hours (21600000 ms)
-      setTimeout(async () => {
-        const answerMatch = quiz.match(/Answer:\s*([A-D])/);
-        const explanationMatch = quiz.match(/Explanation:(.*)$/s);
-        let answer = answerMatch ? answerMatch[1] : 'Unknown';
-        let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-        await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
-      }, 6 * 60 * 60 * 1000); // 6 hours
+      }, 23 * 60 * 60 * 1000);
     } catch (err) {
       console.error('Error generating forced scheduled quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled quiz.');
@@ -419,23 +415,19 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
       }
     });
 
-    // Close poll after 5 hours and 50 minutes (21000000 ms)
+    // Close poll and reveal answer after 23 hours (82800000 ms)
     setTimeout(async () => {
       try {
         await pollMsg.end();
+        const answerMatch = quiz.match(/Answer:\s*([A-D])/);
+        const explanationMatch = quiz.match(/Explanation:(.*)$/s);
+        let answer = answerMatch ? answerMatch[1] : 'Unknown';
+        let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+        await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
       } catch (err) {
-        console.error('Error ending poll:', err);
+        console.error('Error ending poll or revealing answer:', err);
       }
-    }, 5 * 60 * 60 * 1000 + 50 * 60 * 1000); // 5 hours and 50 minutes
-
-    // Reveal answer after 6 hours (21600000 ms)
-    setTimeout(async () => {
-      const answerMatch = quiz.match(/Answer:\s*([A-D])/);
-      const explanationMatch = quiz.match(/Explanation:(.*)$/s);
-      let answer = answerMatch ? answerMatch[1] : 'Unknown';
-      let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-      await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
-    }, 6 * 60 * 60 * 1000); // 6 hours
+    }, 23 * 60 * 60 * 1000);
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
   }
