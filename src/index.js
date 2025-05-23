@@ -54,6 +54,8 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 // Placeholder for quiz channel
 const QUIZ_CHANNEL_ID = process.env.QUIZ_CHANNEL_ID;
 const SMALLTALK_CHANNEL_IDS = process.env.SMALLTALK_CHANNEL_IDS?.split(',') || [];
+const WORD_CHANNEL_ID = process.env.WORD_CHANNEL_ID;
+const GRAMMAR_CHANNEL_ID = process.env.GRAMMAR_CHANNEL_ID;
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
@@ -159,7 +161,6 @@ Do not include greetings, lesson titles, or number the sections.`
 
       const embed = new EmbedBuilder()
         .setColor(0x00AE86)
-        .setTitle('🎌 Today\'s Small Talk')
         .setDescription(reply)
         .setFooter({ text: 'Use !smalltalk again for a new one!' });
 
@@ -348,6 +349,268 @@ Do not include greetings, lesson titles, or number the sections.`
       message.reply('Sorry, something went wrong while generating the forced scheduled smalltalk.');
     }
   }
+
+  if (message.content === '!word') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a word of the day card.
+Each time, select a useful Japanese word that learners might encounter in daily life.
+Avoid repeating words from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📝 Word:
+JP: <the word in Japanese>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+💡 Definition:
+<Detailed explanation of the word's meaning and usage>
+
+🎯 Example:
+JP: <Natural Japanese sentence using the word>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common collocations, related words, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese word of the day.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the word text
+      const imageBuffer = generateCardImage(reply);
+      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+
+      // Extract the example sentence and generate audio
+      const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
+      if (exampleMatch) {
+        const exampleSentence = exampleMatch[1].trim();
+        const audioBuffer = await getTTSBuffer(exampleSentence);
+        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+        await message.channel.send({ files: [audioAttachment] });
+      }
+      // Add prompt for users to create their own examples
+      await message.channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+    } catch (err) {
+      console.error('Error fetching from OpenAI or generating image:', err);
+      message.reply('Sorry, something went wrong while generating the word of the day.');
+    }
+  }
+
+  if (message.content === '!grammar') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a grammar point of the day card.
+Each time, select a useful Japanese grammar point that learners might encounter in daily life.
+Avoid repeating grammar points from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+<Name of the grammar point in English>
+
+💡 Explanation:
+<Clear explanation of how to use this grammar point, including its meaning and when to use it>
+
+🎯 Examples:
+JP: <Natural Japanese sentence using the grammar point>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common mistakes, related grammar points, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese grammar point of the day.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the grammar text
+      const imageBuffer = generateCardImage(reply);
+      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+
+      // Extract the example sentence and generate audio
+      const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
+      if (exampleMatch) {
+        const exampleSentence = exampleMatch[1].trim();
+        const audioBuffer = await getTTSBuffer(exampleSentence);
+        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+        await message.channel.send({ files: [audioAttachment] });
+      }
+      // Add prompt for users to create their own examples
+      await message.channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    } catch (err) {
+      console.error('Error fetching from OpenAI or generating image:', err);
+      message.reply('Sorry, something went wrong while generating the grammar point of the day.');
+    }
+  }
+
+  if (message.content === '!forcescheduledword') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a word of the day card.
+Each time, select a useful Japanese word that learners might encounter in daily life.
+Avoid repeating words from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📝 Word:
+JP: <the word in Japanese>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+💡 Definition:
+<Detailed explanation of the word's meaning and usage>
+
+🎯 Example:
+JP: <Natural Japanese sentence using the word>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common collocations, related words, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese word of the day.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setDescription(reply)
+        .setFooter({ text: 'Use !smalltalk again for a new one!' });
+
+      await message.reply({ embeds: [embed] });
+
+      // Generate the card image from the word text
+      const imageBuffer = generateCardImage(reply);
+
+      // Send to the word channel
+      const channel = client.channels.cache.get(WORD_CHANNEL_ID);
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+
+        // Extract the example sentence and generate audio
+        const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
+        if (exampleMatch) {
+          const exampleSentence = exampleMatch[1].trim();
+          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+        // Add prompt for users to create their own examples
+        await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+      }
+      message.reply('✅ Word of the day has been sent to the configured channel!');
+    } catch (err) {
+      console.error('Error generating forced scheduled word:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled word of the day.');
+    }
+  }
+
+  if (message.content === '!forcescheduledgrammar') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a grammar point of the day card.
+Each time, select a useful Japanese grammar point that learners might encounter in daily life.
+Avoid repeating grammar points from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+<Name of the grammar point in English>
+
+💡 Explanation:
+<Clear explanation of how to use this grammar point, including its meaning and when to use it>
+
+🎯 Examples:
+JP: <Natural Japanese sentence using the grammar point>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common mistakes, related grammar points, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese grammar point of the day.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setDescription(reply)
+        .setFooter({ text: 'Use !smalltalk again for a new one!' });
+
+      await message.reply({ embeds: [embed] });
+
+      // Generate the card image from the grammar text
+      const imageBuffer = generateCardImage(reply);
+
+      // Send to the grammar channel
+      const channel = client.channels.cache.get(GRAMMAR_CHANNEL_ID);
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+
+        // Extract the example sentence and generate audio
+        const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
+        if (exampleMatch) {
+          const exampleSentence = exampleMatch[1].trim();
+          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+        // Add prompt for users to create their own examples
+        await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+      }
+      message.reply('✅ Grammar of the day has been sent to the configured channel!');
+    } catch (err) {
+      console.error('Error generating forced scheduled grammar:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled grammar of the day.');
+    }
+  }
 });
 
 // Helper to generate a comprehension quiz using OpenAI
@@ -485,6 +748,148 @@ Do not include greetings, lesson titles, or number the sections.`
     }
   } catch (err) {
     console.error('Error generating scheduled smalltalk:', err);
+  }
+});
+
+// Scheduled daily word
+schedule.scheduleJob('0 2 * * *', async () => { // 2:00 AM UTC = 11:00 AM JST
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a Japanese language tutor generating a word of the day card.
+Each time, select a useful Japanese word that learners might encounter in daily life.
+Avoid repeating words from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📝 Word:
+JP: <the word in Japanese>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+💡 Definition:
+<Detailed explanation of the word's meaning and usage>
+
+🎯 Example:
+JP: <Natural Japanese sentence using the word>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common collocations, related words, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me a Japanese word of the day.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00AE86)
+      .setDescription(reply)
+      .setFooter({ text: 'Use !smalltalk again for a new one!' });
+
+    await message.reply({ embeds: [embed] });
+
+    // Generate the card image from the word text
+    const imageBuffer = generateCardImage(reply);
+
+    // Send to the word channel
+    const channel = client.channels.cache.get(WORD_CHANNEL_ID);
+    if (channel) {
+      await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+
+      // Extract the example sentence and generate audio
+      const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
+      if (exampleMatch) {
+        const exampleSentence = exampleMatch[1].trim();
+        const audioBuffer = await getTTSBuffer(exampleSentence);
+        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+        await channel.send({ files: [audioAttachment] });
+      }
+      // Add prompt for users to create their own examples
+      await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+    }
+  } catch (err) {
+    console.error('Error generating scheduled word:', err);
+  }
+});
+
+// Scheduled daily grammar
+schedule.scheduleJob('0 3 * * *', async () => { // 3:00 AM UTC = 12:00 PM JST
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a Japanese language tutor generating a grammar point of the day card.
+Each time, select a useful Japanese grammar point that learners might encounter in daily life.
+Avoid repeating grammar points from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+<Name of the grammar point in English>
+
+💡 Explanation:
+<Clear explanation of how to use this grammar point, including its meaning and when to use it>
+
+🎯 Examples:
+JP: <Natural Japanese sentence using the grammar point>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common mistakes, related grammar points, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me a Japanese grammar point of the day.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00AE86)
+      .setDescription(reply)
+      .setFooter({ text: 'Use !smalltalk again for a new one!' });
+
+    await message.reply({ embeds: [embed] });
+
+    // Generate the card image from the grammar text
+    const imageBuffer = generateCardImage(reply);
+
+    // Send to the grammar channel
+    const channel = client.channels.cache.get(GRAMMAR_CHANNEL_ID);
+    if (channel) {
+      await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+
+      // Extract the example sentence and generate audio
+      const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
+      if (exampleMatch) {
+        const exampleSentence = exampleMatch[1].trim();
+        const audioBuffer = await getTTSBuffer(exampleSentence);
+        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+        await channel.send({ files: [audioAttachment] });
+      }
+      // Add prompt for users to create their own examples
+      await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    }
+  } catch (err) {
+    console.error('Error generating scheduled grammar:', err);
   }
 });
 

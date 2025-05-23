@@ -5,24 +5,50 @@ registerFont(__dirname + '/../fonts/NotoSansJP-Regular.ttf', { family: 'NotoSans
 // registerFont('path/to/font.ttf', { family: 'CustomFont' });
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = text.split(' ');
-  let line = '';
+  // Split by both spaces and newlines
+  const words = text.split(/\s+/);
   let lines = [];
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-    if (testWidth > maxWidth && n > 0) {
-      lines.push(line);
-      line = words[n] + ' ';
+  let currentLine = '';
+
+  for (let word of words) {
+    // If the word itself is longer than maxWidth, we need to split it
+    if (ctx.measureText(word).width > maxWidth) {
+      // If we have a current line, add it first
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+      // Split the long word into characters
+      let chars = word.split('');
+      let tempWord = '';
+      for (let char of chars) {
+        if (ctx.measureText(tempWord + char).width <= maxWidth) {
+          tempWord += char;
+        } else {
+          if (tempWord) lines.push(tempWord);
+          tempWord = char;
+        }
+      }
+      if (tempWord) lines.push(tempWord);
+      continue;
+    }
+
+    // Test if adding this word would exceed the maxWidth
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      currentLine = testLine;
     } else {
-      line = testLine;
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
     }
   }
-  lines.push(line);
+  if (currentLine) lines.push(currentLine);
+
+  // Draw all lines
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i], x, y + i * lineHeight);
   }
+
   return y + lines.length * lineHeight;
 }
 
@@ -34,21 +60,37 @@ module.exports = function generateCardImage(smalltalkText) {
 
   // Parse the processedText into blocks
   const blocks = processedText.split(/\n\n/);
-  const width = 800;
+  const minWidth = 800;
+  const maxWidth = 1200;
   const baseHeight = 600;
   const headerHeight = Math.floor(baseHeight / 3);
   const leftPad = 50;
-  const contentWidth = width - 2 * leftPad;
   const titleHeight = 48;
   const blockSpacing = 32;
   const lineHeight = 32;
 
-  // --- First pass: measure required height ---
+  // --- First pass: measure required width and height ---
   // Create a temp canvas for measurement
-  const tempCanvas = createCanvas(width, baseHeight);
+  const tempCanvas = createCanvas(minWidth, baseHeight);
   const tempCtx = tempCanvas.getContext('2d');
-  let y = headerHeight + 50 + titleHeight; // Start after header and title
-  tempCtx.font = '22px NotoSansJP';
+  tempCtx.font = '26px NotoSansJP';
+
+  // Find the longest line to determine width
+  let maxLineWidth = 0;
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    for (const line of lines) {
+      const width = tempCtx.measureText(line).width;
+      maxLineWidth = Math.max(maxLineWidth, width);
+    }
+  }
+
+  // Calculate final width (add padding and ensure it's within bounds)
+  const contentWidth = Math.min(Math.max(maxLineWidth + 2 * leftPad, minWidth), maxWidth);
+  const width = contentWidth;
+
+  // Measure height
+  let y = headerHeight + 50 + titleHeight;
   for (const block of blocks) {
     const lines = block.split('\n');
     for (let i = 0; i < lines.length; i++) {
@@ -59,7 +101,7 @@ module.exports = function generateCardImage(smalltalkText) {
         let testLine = line + words[n] + ' ';
         let metrics = tempCtx.measureText(testLine);
         let testWidth = metrics.width;
-        if (testWidth > contentWidth && n > 0) {
+        if (testWidth > contentWidth - 2 * leftPad && n > 0) {
           y += lineHeight;
           line = words[n] + ' ';
         } else {
@@ -138,29 +180,20 @@ module.exports = function generateCardImage(smalltalkText) {
   ctx.stroke();
 
   // "Sekai Meetup" text in header
-  ctx.font = 'bold 40px NotoSansJP';
+  ctx.font = 'bold 48px NotoSansJP';
   ctx.fillStyle = '#222';
   ctx.textAlign = 'center';
   ctx.fillText('Sekai Meetup', width / 2, 55);
   ctx.textAlign = 'start';
 
-  // Border around the whole card
-  ctx.strokeStyle = '#FFC857';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(20, 20, width - 40, totalHeight - 40);
-
   // --- Main Content Section ---
   y = headerHeight + 50;
-  ctx.font = 'bold 32px NotoSansJP';
-  ctx.fillStyle = '#222';
-  ctx.fillText("Today's small talk", leftPad, y);
-  y += titleHeight;
-  ctx.font = '22px NotoSansJP';
+  ctx.font = '26px NotoSansJP';
   for (const block of blocks) {
     const lines = block.split('\n');
     for (let i = 0; i < lines.length; i++) {
       ctx.fillStyle = '#222';
-      y = wrapText(ctx, lines[i], leftPad, y, contentWidth, lineHeight);
+      y = wrapText(ctx, lines[i], leftPad, y, contentWidth - 2 * leftPad, lineHeight);
     }
     y += blockSpacing;
   }
