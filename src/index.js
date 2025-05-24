@@ -52,10 +52,10 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // Placeholder for quiz channel
-const QUIZ_CHANNEL_ID = process.env.QUIZ_CHANNEL_ID;
+const JAPANESE_QUIZ_CHANNEL_ID = process.env.JAPANESE_QUIZ_CHANNEL_ID;
 const SMALLTALK_CHANNEL_IDS = process.env.SMALLTALK_CHANNEL_IDS?.split(',') || [];
-const WORD_CHANNEL_ID = process.env.WORD_CHANNEL_ID;
-const GRAMMAR_CHANNEL_ID = process.env.GRAMMAR_CHANNEL_ID;
+const JAPANESE_WORD_CHANNEL_ID = process.env.JAPANESE_WORD_CHANNEL_ID;
+const JAPANESE_GRAMMAR_CHANNEL_ID = process.env.JAPANESE_GRAMMAR_CHANNEL_ID;
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
@@ -241,7 +241,7 @@ Do not include greetings, lesson titles, or number the sections.`
   if (message.content === '!forcescheduledquiz') {
     try {
       const quiz = await generateComprehensionQuiz();
-      const channel = client.channels.cache.get(QUIZ_CHANNEL_ID);
+      const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
       if (!channel) return;
       // Extract the Japanese sentence and options
       const jpMatch = quiz.match(/JP:\s*(.+)/);
@@ -256,7 +256,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const audioBuffer = await getTTSBuffer(question);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
       await channel.send({
-        content: `@here **Daily Quiz**\n${question}`,
+        content: `@everyone **Daily Quiz**\n${question}`,
         files: [audioAttachment]
       });
 
@@ -278,14 +278,32 @@ Do not include greetings, lesson titles, or number the sections.`
       // Close poll and reveal answer after 23 hours (82800000 ms)
       setTimeout(async () => {
         try {
+          console.log('Attempting to end poll and reveal answer...');
           await pollMsg.end();
-          const answerMatch = quiz.match(/Answer:\s*([A-D])/);
-          const explanationMatch = quiz.match(/Explanation:(.*)$/s);
-          let answer = answerMatch ? answerMatch[1] : 'Unknown';
+          console.log('Poll ended successfully');
+          
+          console.log('Raw quiz content:', quiz);
+          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+          console.log('Answer match:', answerMatch);
+          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+          console.log('Explanation match:', explanationMatch);
+          
+          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
           let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+          console.log('Extracted answer:', answer);
+          console.log('Extracted explanation:', explanation);
+          
           await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          console.log('Answer revealed successfully');
         } catch (err) {
           console.error('Error ending poll or revealing answer:', err);
+          console.error('Error stack:', err.stack);
+          // Try to send an error message to the channel
+          try {
+            await channel.send('❌ There was an error revealing the answer. Please check the logs.');
+          } catch (sendErr) {
+            console.error('Failed to send error message:', sendErr);
+          }
         }
       }, 23 * 60 * 60 * 1000);
     } catch (err) {
@@ -519,7 +537,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const imageBuffer = generateCardImage(reply);
 
       // Send to the word channel
-      const channel = client.channels.cache.get(WORD_CHANNEL_ID);
+      const channel = client.channels.cache.get(JAPANESE_WORD_CHANNEL_ID);
       if (channel) {
         await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
 
@@ -590,7 +608,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const imageBuffer = generateCardImage(reply);
 
       // Send to the grammar channel
-      const channel = client.channels.cache.get(GRAMMAR_CHANNEL_ID);
+      const channel = client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID);
       if (channel) {
         await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
 
@@ -644,7 +662,7 @@ Explanation: <why>
 schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
   try {
     const quiz = await generateComprehensionQuiz();
-    const channel = client.channels.cache.get(QUIZ_CHANNEL_ID);
+    const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
     if (!channel) return;
     // Extract the Japanese sentence and options
     const jpMatch = quiz.match(/JP:\s*(.+)/);
@@ -659,7 +677,7 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     const audioBuffer = await getTTSBuffer(question);
     const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
     await channel.send({
-      content: `@here **Daily Quiz**\n${question}`,
+      content: `@everyone **Daily Quiz**\n${question}`,
       files: [audioAttachment]
     });
 
@@ -681,14 +699,32 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     // Close poll and reveal answer after 23 hours (82800000 ms)
     setTimeout(async () => {
       try {
+        console.log('Attempting to end poll and reveal answer...');
         await pollMsg.end();
-        const answerMatch = quiz.match(/Answer:\s*([A-D])/);
-        const explanationMatch = quiz.match(/Explanation:(.*)$/s);
-        let answer = answerMatch ? answerMatch[1] : 'Unknown';
+        console.log('Poll ended successfully');
+        
+        console.log('Raw quiz content:', quiz);
+        const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+        console.log('Answer match:', answerMatch);
+        const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+        console.log('Explanation match:', explanationMatch);
+        
+        let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
         let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+        console.log('Extracted answer:', answer);
+        console.log('Extracted explanation:', explanation);
+        
         await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+        console.log('Answer revealed successfully');
       } catch (err) {
         console.error('Error ending poll or revealing answer:', err);
+        console.error('Error stack:', err.stack);
+        // Try to send an error message to the channel
+        try {
+          await channel.send('❌ There was an error revealing the answer. Please check the logs.');
+        } catch (sendErr) {
+          console.error('Failed to send error message:', sendErr);
+        }
       }
     }, 23 * 60 * 60 * 1000);
   } catch (err) {
@@ -803,7 +839,7 @@ Do not include greetings, lesson titles, or number the sections.`
     const imageBuffer = generateCardImage(reply);
 
     // Send to the word channel
-    const channel = client.channels.cache.get(WORD_CHANNEL_ID);
+    const channel = client.channels.cache.get(JAPANESE_WORD_CHANNEL_ID);
     if (channel) {
       await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
 
@@ -873,7 +909,7 @@ Do not include greetings, lesson titles, or number the sections.`
     const imageBuffer = generateCardImage(reply);
 
     // Send to the grammar channel
-    const channel = client.channels.cache.get(GRAMMAR_CHANNEL_ID);
+    const channel = client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID);
     if (channel) {
       await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
 
