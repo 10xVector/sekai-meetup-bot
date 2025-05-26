@@ -275,8 +275,14 @@ Do not include greetings, lesson titles, or number the sections.`
           await message.channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
           console.log('Answer revealed successfully');
 
-          // Then end the poll
-          await pollMsg.end();
+          // Then end the poll by editing the message
+          await pollMsg.edit({
+            poll: {
+              question: { text: 'What is the most accurate English meaning?' },
+              answers: optionLabels.map(label => ({ text: label })),
+              duration: 0 // This effectively ends the poll
+            }
+          });
           console.log('Poll ended successfully');
         } catch (err) {
           console.error('Error ending poll or revealing answer:', err);
@@ -813,8 +819,14 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
         await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
         console.log('Answer revealed successfully');
 
-        // Then end the poll
-        await pollMsg.end();
+        // Then end the poll by editing the message
+        await pollMsg.edit({
+          poll: {
+            question: { text: 'What is the most accurate English meaning?' },
+            answers: optionLabels.map(label => ({ text: label })),
+            duration: 0 // This effectively ends the poll
+          }
+        });
         console.log('Poll ended successfully');
       } catch (err) {
         console.error('Error ending poll or revealing answer:', err);
