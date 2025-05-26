@@ -676,6 +676,124 @@ Do not include greetings, lesson titles, or number the sections.`
     }
   }
 
+  if (message.content === '!japaneseword') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a word of the day card.
+Each time, select a useful Japanese word that learners might encounter in daily life.
+Avoid repeating words from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📝 Word:
+JP: <the word in Japanese>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+💡 Definition:
+<Detailed explanation of the word's meaning and usage>
+
+🎯 Example:
+JP: <Natural Japanese sentence using the word>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common collocations, related words, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese word of the day.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the word text
+      const imageBuffer = generateCardImage(reply);
+      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+
+      // Extract the example sentence and generate audio
+      const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
+      if (exampleMatch) {
+        const exampleSentence = exampleMatch[1].trim();
+        const audioBuffer = await getTTSBuffer(exampleSentence);
+        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+        await message.channel.send({ files: [audioAttachment] });
+      }
+      // Add prompt for users to create their own examples
+      await message.channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+    } catch (err) {
+      console.error('Error fetching from OpenAI or generating image:', err);
+      message.reply('Sorry, something went wrong while generating the word of the day.');
+    }
+  }
+
+  if (message.content === '!japanesegrammar') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a grammar point of the day card.
+Each time, select a useful Japanese grammar point that learners might encounter in daily life.
+Avoid repeating grammar points from previous days.
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+<Name of the grammar point in English>
+
+💡 Explanation:
+<Clear explanation of how to use this grammar point, including its meaning and when to use it>
+
+🎯 Examples:
+JP: <Natural Japanese sentence using the grammar point>  
+Romaji: <Romaji version>  
+EN: <English translation>
+
+📌 Notes:
+<Additional information like common mistakes, related grammar points, or usage tips>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a Japanese grammar point of the day.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the grammar text
+      const imageBuffer = generateCardImage(reply);
+      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+
+      // Extract the example sentence and generate audio
+      const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
+      if (exampleMatch) {
+        const exampleSentence = exampleMatch[1].trim();
+        const audioBuffer = await getTTSBuffer(exampleSentence);
+        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+        await message.channel.send({ files: [audioAttachment] });
+      }
+      // Add prompt for users to create their own examples
+      await message.channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    } catch (err) {
+      console.error('Error fetching from OpenAI or generating image:', err);
+      message.reply('Sorry, something went wrong while generating the grammar point of the day.');
+    }
+  }
+
   // Add new say command
   if (message.content.startsWith('!say ')) {
     // Check if user has admin permissions
@@ -940,13 +1058,6 @@ Do not include greetings, lesson titles, or number the sections.`
 
     const reply = completion.choices[0].message.content;
 
-    const embed = new EmbedBuilder()
-      .setColor(0x00AE86)
-      .setDescription(reply)
-      .setFooter({ text: 'Use !smalltalk again for a new one!' });
-
-    await message.reply({ embeds: [embed] });
-
     // Generate the card image from the word text
     const imageBuffer = generateCardImage(reply);
 
@@ -1009,13 +1120,6 @@ Do not include greetings, lesson titles, or number the sections.`
     });
 
     const reply = completion.choices[0].message.content;
-
-    const embed = new EmbedBuilder()
-      .setColor(0x00AE86)
-      .setDescription(reply)
-      .setFooter({ text: 'Use !smalltalk again for a new one!' });
-
-    await message.reply({ embeds: [embed] });
 
     // Generate the card image from the grammar text
     const imageBuffer = generateCardImage(reply);
