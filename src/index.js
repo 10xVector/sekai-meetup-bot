@@ -870,7 +870,10 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
   try {
     const quiz = await generateComprehensionQuiz();
     const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
-    if (!channel) return;
+    if (!channel) {
+      console.error('Quiz channel not found:', JAPANESE_QUIZ_CHANNEL_ID);
+      return;
+    }
     // Extract the Japanese sentence and options
     const jpMatch = quiz.match(/JP:\s*(.+)/);
     const options = [];
@@ -1063,20 +1066,23 @@ Do not include greetings, lesson titles, or number the sections.`
 
     // Send to the word channel
     const channel = client.channels.cache.get(JAPANESE_WORD_CHANNEL_ID);
-    if (channel) {
-      await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
-
-      // Extract the example sentence and generate audio
-      const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
-      if (exampleMatch) {
-        const exampleSentence = exampleMatch[1].trim();
-        const audioBuffer = await getTTSBuffer(exampleSentence);
-        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-        await channel.send({ files: [audioAttachment] });
-      }
-      // Add prompt for users to create their own examples
-      await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+    if (!channel) {
+      console.error('Word channel not found:', JAPANESE_WORD_CHANNEL_ID);
+      return;
     }
+
+    await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+
+    // Extract the example sentence and generate audio
+    const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
+    if (exampleMatch) {
+      const exampleSentence = exampleMatch[1].trim();
+      const audioBuffer = await getTTSBuffer(exampleSentence);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+      await channel.send({ files: [audioAttachment] });
+    }
+    // Add prompt for users to create their own examples
+    await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
   } catch (err) {
     console.error('Error generating scheduled word:', err);
   }
@@ -1126,20 +1132,23 @@ Do not include greetings, lesson titles, or number the sections.`
 
     // Send to the grammar channel
     const channel = client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID);
-    if (channel) {
-      await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
-
-      // Extract the example sentence and generate audio
-      const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
-      if (exampleMatch) {
-        const exampleSentence = exampleMatch[1].trim();
-        const audioBuffer = await getTTSBuffer(exampleSentence);
-        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-        await channel.send({ files: [audioAttachment] });
-      }
-      // Add prompt for users to create their own examples
-      await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    if (!channel) {
+      console.error('Grammar channel not found:', JAPANESE_GRAMMAR_CHANNEL_ID);
+      return;
     }
+
+    await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+
+    // Extract the example sentence and generate audio
+    const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
+    if (exampleMatch) {
+      const exampleSentence = exampleMatch[1].trim();
+      const audioBuffer = await getTTSBuffer(exampleSentence);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+      await channel.send({ files: [audioAttachment] });
+    }
+    // Add prompt for users to create their own examples
+    await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
   } catch (err) {
     console.error('Error generating scheduled grammar:', err);
   }
