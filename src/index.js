@@ -65,6 +65,11 @@ const SMALLTALK_CHANNEL_IDS = process.env.SMALLTALK_CHANNEL_IDS?.split(',') || [
 const JAPANESE_WORD_CHANNEL_ID = process.env.JAPANESE_WORD_CHANNEL_ID;
 const JAPANESE_GRAMMAR_CHANNEL_ID = process.env.JAPANESE_GRAMMAR_CHANNEL_ID;
 
+// English learning channels
+const ENGLISH_QUIZ_CHANNEL_ID = process.env.ENGLISH_QUIZ_CHANNEL_ID;
+const ENGLISH_WORD_CHANNEL_ID = process.env.ENGLISH_WORD_CHANNEL_ID;
+const ENGLISH_GRAMMAR_CHANNEL_ID = process.env.ENGLISH_GRAMMAR_CHANNEL_ID;
+
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
 // Available Japanese voices for rotation
@@ -564,105 +569,6 @@ Do not include greetings, lesson titles, or number the sections.`
     }
   }
 
-  if (message.content === '!forcescheduledgrammar') {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a Japanese language tutor generating a grammar point of the day card.
-Each time, select a different Japanese grammar point from a wide range of JLPT levels (N5 to N1).
-Focus on practical, commonly used grammar patterns that learners might encounter in daily life.
-Avoid repeating grammar points from previous days.
-
-Consider these categories when selecting grammar points:
-- Basic sentence patterns (N5)
-- Verb conjugations and forms (N5-N4)
-- Particles and their various uses (N5-N3)
-- Conditional forms (N4-N2)
-- Honorific and humble expressions (N3-N1)
-- Complex sentence structures (N3-N1)
-- Colloquial expressions (N4-N2)
-- Formal and business Japanese (N3-N1)
-- Time-related expressions (N5-N3)
-- Passive, causative, and causative-passive forms (N4-N2)
-- Expressing probability and possibility (N4-N2)
-- Expressing intention and volition (N4-N2)
-- Expressing obligation and necessity (N4-N2)
-- Expressing permission and prohibition (N4-N2)
-- Expressing giving and receiving (N4-N2)
-- Expressing comparison and contrast (N4-N2)
-- Expressing cause and effect (N4-N2)
-- Expressing purpose and reason (N4-N2)
-- Expressing conditions and suppositions (N4-N2)
-- Expressing time and sequence (N4-N2)
-
-Format the response into exactly 4 clearly separated blocks (using \n\n):
-
-📚 Grammar Point:
-<Name of the grammar point in English>
-JLPT Level: <N5/N4/N3/N2/N1>
-
-💡 Explanation:
-<Clear explanation of how to use this grammar point, including:
-- Its meaning and when to use it
-- Common patterns and structures
-- Any important nuances or exceptions
-- How it differs from similar grammar points>
-
-🎯 Examples:
-JP: <Natural Japanese sentence using the grammar point>  
-Romaji: <Romaji version>  
-EN: <English translation>
-
-📌 Notes:
-<Additional information like:
-- Common mistakes to avoid
-- Related grammar points
-- Usage tips
-- Cultural context if relevant
-- Formality level>
-
-Do not include greetings, lesson titles, or number the sections.`
-          },
-          {
-            role: 'user',
-            content: 'Give me a Japanese grammar point of the day.'
-          }
-        ]
-      });
-
-      const reply = completion.choices[0].message.content;
-
-      // Generate the card image from the grammar text
-      const imageBuffer = generateCardImage(reply);
-
-      // Send to the grammar channel or current channel if no channel ID is set
-      const channel = JAPANESE_GRAMMAR_CHANNEL_ID ? 
-        client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID) : 
-        message.channel;
-
-      if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
-
-        // Extract the example sentence and generate audio
-        const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
-        if (exampleMatch) {
-          const exampleSentence = exampleMatch[1].trim();
-          const audioBuffer = await getTTSBuffer(exampleSentence);
-          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-          await channel.send({ files: [audioAttachment] });
-        }
-        // Add prompt for users to create their own examples
-        await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
-      }
-    } catch (err) {
-      console.error('Error generating forced scheduled grammar:', err);
-      message.reply('Sorry, something went wrong while generating the forced scheduled grammar of the day.');
-    }
-  }
-
   if (message.content === '!forcescheduledword') {
     try {
       const completion = await openai.chat.completions.create({
@@ -763,72 +669,12 @@ Do not include greetings, lesson titles, or number the sections.`
         await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
       }
     } catch (err) {
-      console.error('Error generating forced scheduled word:', err);
-      message.reply('Sorry, something went wrong while generating the forced scheduled word of the day.');
+      console.error('Error generating Japanese word:', err);
+      message.reply('Sorry, something went wrong while generating the Japanese word of the day.');
     }
   }
 
-  if (message.content === '!japaneseword') {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a Japanese language tutor generating a word of the day card.
-Each time, select a useful Japanese word that learners might encounter in daily life.
-Avoid repeating words from previous days.
-
-Format the response into exactly 4 clearly separated blocks (using \n\n):
-
-📝 Word:
-JP: <the word in Japanese>  
-Romaji: <Romaji version>  
-EN: <English translation>
-
-💡 Definition:
-<Detailed explanation of the word's meaning and usage>
-
-🎯 Example:
-JP: <Natural Japanese sentence using the word>  
-Romaji: <Romaji version>  
-EN: <English translation>
-
-📌 Notes:
-<Additional information like common collocations, related words, or usage tips>
-
-Do not include greetings, lesson titles, or number the sections.`
-          },
-          {
-            role: 'user',
-            content: 'Give me a Japanese word of the day.'
-          }
-        ]
-      });
-
-      const reply = completion.choices[0].message.content;
-
-      // Generate the card image from the word text
-      const imageBuffer = generateCardImage(reply);
-      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
-
-      // Extract the example sentence and generate audio
-      const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
-      if (exampleMatch) {
-        const exampleSentence = exampleMatch[1].trim();
-        const audioBuffer = await getTTSBuffer(exampleSentence);
-        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-        await message.channel.send({ files: [audioAttachment] });
-      }
-      // Add prompt for users to create their own examples
-      await message.channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
-    } catch (err) {
-      console.error('Error fetching from OpenAI or generating image:', err);
-      message.reply('Sorry, something went wrong while generating the word of the day.');
-    }
-  }
-
-  if (message.content === '!japanesegrammar') {
+  if (message.content === '!forcescheduledjapanesegrammar') {
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -836,16 +682,44 @@ Do not include greetings, lesson titles, or number the sections.`
           {
             role: 'system',
             content: `You are a Japanese language tutor generating a grammar point of the day card.
-Each time, select a useful Japanese grammar point that learners might encounter in daily life.
+Each time, select a different Japanese grammar point from a wide range of JLPT levels (N5 to N1).
+Focus on practical, commonly used grammar patterns that learners might encounter in daily life.
 Avoid repeating grammar points from previous days.
+
+Consider these categories when selecting grammar points:
+- Basic sentence patterns (N5)
+- Verb conjugations and forms (N5-N4)
+- Particles and their various uses (N5-N3)
+- Conditional forms (N4-N2)
+- Honorific and humble expressions (N3-N1)
+- Complex sentence structures (N3-N1)
+- Colloquial expressions (N4-N2)
+- Formal and business Japanese (N3-N1)
+- Time-related expressions (N5-N3)
+- Passive, causative, and causative-passive forms (N4-N2)
+- Expressing probability and possibility (N4-N2)
+- Expressing intention and volition (N4-N2)
+- Expressing obligation and necessity (N4-N2)
+- Expressing permission and prohibition (N4-N2)
+- Expressing giving and receiving (N4-N2)
+- Expressing comparison and contrast (N4-N2)
+- Expressing cause and effect (N4-N2)
+- Expressing purpose and reason (N4-N2)
+- Expressing conditions and suppositions (N4-N2)
+- Expressing time and sequence (N4-N2)
 
 Format the response into exactly 4 clearly separated blocks (using \n\n):
 
 📚 Grammar Point:
 <Name of the grammar point in English>
+JLPT Level: <N5/N4/N3/N2/N1>
 
 💡 Explanation:
-<Clear explanation of how to use this grammar point, including its meaning and when to use it>
+<Clear explanation of how to use this grammar point, including:
+- Its meaning and when to use it
+- Common patterns and structures
+- Any important nuances or exceptions
+- How it differs from similar grammar points>
 
 🎯 Examples:
 JP: <Natural Japanese sentence using the grammar point>  
@@ -853,7 +727,12 @@ Romaji: <Romaji version>
 EN: <English translation>
 
 📌 Notes:
-<Additional information like common mistakes, related grammar points, or usage tips>
+<Additional information like:
+- Common mistakes to avoid
+- Related grammar points
+- Usage tips
+- Cultural context if relevant
+- Formality level>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -868,21 +747,227 @@ Do not include greetings, lesson titles, or number the sections.`
 
       // Generate the card image from the grammar text
       const imageBuffer = generateCardImage(reply);
-      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
 
-      // Extract the example sentence and generate audio
-      const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
-      if (exampleMatch) {
-        const exampleSentence = exampleMatch[1].trim();
-        const audioBuffer = await getTTSBuffer(exampleSentence);
-        const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-        await message.channel.send({ files: [audioAttachment] });
+      // Send to the grammar channel or current channel if no channel ID is set
+      const channel = JAPANESE_GRAMMAR_CHANNEL_ID ? 
+        client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID) : 
+        message.channel;
+
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+
+        // Extract the example sentence and generate audio
+        const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
+        if (exampleMatch) {
+          const exampleSentence = exampleMatch[1].trim();
+          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+        // Add prompt for users to create their own examples
+        await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
       }
-      // Add prompt for users to create their own examples
-      await message.channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
     } catch (err) {
-      console.error('Error fetching from OpenAI or generating image:', err);
-      message.reply('Sorry, something went wrong while generating the grammar point of the day.');
+      console.error('Error generating Japanese grammar:', err);
+      message.reply('Sorry, something went wrong while generating the Japanese grammar point of the day.');
+    }
+  }
+
+  if (message.content === '!englishgrammar') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an English language tutor generating a grammar point of the day card for Japanese learners.
+Each time, select a different English grammar point from a wide range of difficulty levels.
+Focus on practical, commonly used grammar patterns that Japanese learners might find challenging.
+Avoid repeating grammar points from previous days.
+
+Consider these categories when selecting grammar points:
+- Basic sentence patterns (Beginner)
+- Verb tenses and forms (Beginner-Intermediate)
+- Prepositions and their uses (Beginner-Intermediate)
+- Conditional forms (Intermediate)
+- Modal verbs (Intermediate)
+- Complex sentence structures (Intermediate-Advanced)
+- Colloquial expressions (Intermediate)
+- Formal and business English (Intermediate-Advanced)
+- Time-related expressions (Beginner-Intermediate)
+- Passive voice (Intermediate)
+- Expressing probability and possibility (Intermediate)
+- Expressing intention and volition (Intermediate)
+- Expressing obligation and necessity (Intermediate)
+- Expressing permission and prohibition (Intermediate)
+- Expressing giving and receiving (Intermediate)
+- Expressing comparison and contrast (Intermediate)
+- Expressing cause and effect (Intermediate)
+- Expressing purpose and reason (Intermediate)
+- Expressing conditions and suppositions (Intermediate)
+- Expressing time and sequence (Intermediate)
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+<Name of the grammar point in English>
+JP: <Japanese explanation of the grammar point>
+Level: <Beginner/Intermediate/Advanced>
+
+💡 Explanation:
+<Clear explanation of how to use this grammar point, including:
+- How it differs from similar Japanese grammar patterns
+- Common mistakes Japanese learners make
+- When and how to use it in daily conversation
+- Any important nuances or exceptions>
+
+🎯 Examples:
+EN: <Natural English sentence using the grammar point>
+JP: <Japanese translation>
+
+📌 Notes:
+<Additional information like:
+- Common mistakes to avoid
+- Related grammar points
+- Usage tips specific to Japanese learners
+- Formality level
+- Any special pronunciation or intonation notes>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me an English grammar point of the day for Japanese learners.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the grammar text
+      const imageBuffer = generateCardImage(reply);
+
+      // Send to the English grammar channel or current channel if no channel ID is set
+      const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
+        client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID) : 
+        message.channel;
+
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+
+        // Extract the example sentence and generate audio
+        const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
+        if (exampleMatch) {
+          const exampleSentence = exampleMatch[1].trim();
+          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+        // Add prompt for users to create their own examples
+        await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+      }
+    } catch (err) {
+      console.error('Error generating English grammar:', err);
+      message.reply('Sorry, something went wrong while generating the English grammar point of the day.');
+    }
+  }
+
+  if (message.content === '!forcescheduledenglishgrammar') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an English language tutor generating a grammar point of the day card for Japanese learners.
+Each time, select a different English grammar point from a wide range of difficulty levels.
+Focus on practical, commonly used grammar patterns that Japanese learners might find challenging.
+Avoid repeating grammar points from previous days.
+
+Consider these categories when selecting grammar points:
+- Basic sentence patterns (Beginner)
+- Verb tenses and forms (Beginner-Intermediate)
+- Prepositions and their uses (Beginner-Intermediate)
+- Conditional forms (Intermediate)
+- Modal verbs (Intermediate)
+- Complex sentence structures (Intermediate-Advanced)
+- Colloquial expressions (Intermediate)
+- Formal and business English (Intermediate-Advanced)
+- Time-related expressions (Beginner-Intermediate)
+- Passive voice (Intermediate)
+- Expressing probability and possibility (Intermediate)
+- Expressing intention and volition (Intermediate)
+- Expressing obligation and necessity (Intermediate)
+- Expressing permission and prohibition (Intermediate)
+- Expressing giving and receiving (Intermediate)
+- Expressing comparison and contrast (Intermediate)
+- Expressing cause and effect (Intermediate)
+- Expressing purpose and reason (Intermediate)
+- Expressing conditions and suppositions (Intermediate)
+- Expressing time and sequence (Intermediate)
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+<Name of the grammar point in English>
+JP: <Japanese explanation of the grammar point>
+Level: <Beginner/Intermediate/Advanced>
+
+💡 Explanation:
+<Clear explanation of how to use this grammar point, including:
+- How it differs from similar Japanese grammar patterns
+- Common mistakes Japanese learners make
+- When and how to use it in daily conversation
+- Any important nuances or exceptions>
+
+🎯 Examples:
+EN: <Natural English sentence using the grammar point>
+JP: <Japanese translation>
+
+📌 Notes:
+<Additional information like:
+- Common mistakes to avoid
+- Related grammar points
+- Usage tips specific to Japanese learners
+- Formality level
+- Any special pronunciation or intonation notes>
+
+Do not include greetings, lesson titles, or number the sections.`
+          },
+          {
+            role: 'user',
+            content: 'Give me an English grammar point of the day for Japanese learners.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the grammar text
+      const imageBuffer = generateCardImage(reply);
+
+      // Send to the English grammar channel or current channel if no channel ID is set
+      const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
+        client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID) : 
+        message.channel;
+
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+
+        // Extract the example sentence and generate audio
+        const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
+        if (exampleMatch) {
+          const exampleSentence = exampleMatch[1].trim();
+          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+        // Add prompt for users to create their own examples
+        await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+      }
+    } catch (err) {
+      console.error('Error generating English grammar:', err);
+      message.reply('Sorry, something went wrong while generating the English grammar point of the day.');
     }
   }
 
@@ -1054,61 +1139,6 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     }, timeUntilReveal);
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
-  }
-});
-
-// Scheduled weekly smalltalk
-schedule.scheduleJob('0 1 * * 1', async () => { // Every Monday at 10:00 AM JST (01:00 UTC)
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a language tutor generating a Japanese-English small talk activity formatted like a classroom practice card.
-
-Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
-
-Format the response into exactly 3 clearly separated blocks (using \n\n):
-
-❓ Question:
-JP: <natural Japanese question related to the theme>  
-Romaji: <Romaji version>  
-EN: <English translation>
-
-✍️ Fill-in-the-Blank:
-JP: <Japanese sentence with a blank or missing part (use ___)>  
-Romaji: <Romaji version with blank>  
-EN: <English sentence with blank>
-
-💬 Example Answer:
-JP: <Completed Japanese sentence using a realistic word in the blank>  
-Romaji: <Romaji version>  
-EN: <Natural English translation>
-
-Do not include greetings, lesson titles, or number the sections.`
-        },
-        {
-          role: 'user',
-          content: 'Give me a Japanese-English language small talk prompt.'
-        }
-      ]
-    });
-
-    const reply = completion.choices[0].message.content;
-
-    // Generate the card image from the smalltalk text
-    const imageBuffer = generateCardImage(reply);
-
-    // Send to all configured smalltalk channels
-    for (const channelId of SMALLTALK_CHANNEL_IDS) {
-      const channel = client.channels.cache.get(channelId);
-      if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
-      }
-    }
-  } catch (err) {
-    console.error('Error generating scheduled smalltalk:', err);
   }
 });
 
