@@ -106,6 +106,40 @@ const JAPANESE_VOICES = [
   }
 ];
 
+// Available English voices for rotation
+const ENGLISH_VOICES = [
+  {
+    name: 'en-US-Neural2-A',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'FEMALE'
+  },
+  {
+    name: 'en-US-Neural2-C',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'FEMALE'
+  },
+  {
+    name: 'en-US-Neural2-D',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'MALE'
+  },
+  {
+    name: 'en-US-Neural2-E',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'MALE'
+  },
+  {
+    name: 'en-US-Neural2-F',
+    speakingRate: 1.0,
+    pitch: 0,
+    ssmlGender: 'FEMALE'
+  }
+];
+
 async function getTTSBuffer(text) {
   // Randomly select a voice from the available options
   const selectedVoice = JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
@@ -114,6 +148,26 @@ async function getTTSBuffer(text) {
     input: { text },
     voice: { 
       languageCode: 'ja-JP',
+      name: selectedVoice.name,
+      ssmlGender: selectedVoice.ssmlGender
+    },
+    audioConfig: { 
+      audioEncoding: 'MP3',
+      speakingRate: selectedVoice.speakingRate,
+      pitch: selectedVoice.pitch
+    },
+  });
+  return Buffer.from(response.audioContent, 'binary');
+}
+
+async function getEnglishTTSBuffer(text) {
+  // Randomly select a voice from the available options
+  const selectedVoice = ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)];
+  
+  const [response] = await ttsClient.synthesizeSpeech({
+    input: { text },
+    voice: { 
+      languageCode: 'en-US',
       name: selectedVoice.name,
       ssmlGender: selectedVoice.ssmlGender
     },
@@ -769,11 +823,11 @@ Do not include greetings, lesson titles, or number the sections.`
       if (channel) {
         await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
 
-        // Extract the example sentence and generate audio
+        // Extract the example sentence and generate audio using English TTS
         const exampleMatch = reply.match(/🎯 Example:\nEN: (.*?)(?=\n|$)/);
         if (exampleMatch) {
           const exampleSentence = exampleMatch[1].trim();
-          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
           const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
           await channel.send({ files: [audioAttachment] });
         }
@@ -972,7 +1026,7 @@ Do not include greetings, lesson titles, or number the sections.`
         if (exampleMatch) {
           const exampleSentence = exampleMatch[1].trim();
           const audioBuffer = await getTTSBuffer(exampleSentence);
-          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
           await channel.send({ files: [audioAttachment] });
         }
         // Add prompt for users to create their own examples
@@ -1021,32 +1075,36 @@ Consider these categories when selecting grammar points:
 Format the response into exactly 4 clearly separated blocks (using \n\n):
 
 📚 Grammar Point:
-<Name of the grammar point in English>
+EN: <Name of the grammar point in English>
 JP: <Japanese explanation of the grammar point>
 Level: <Beginner/Intermediate/Advanced>
 
 💡 Explanation:
-<Clear explanation of how to use this grammar point, including:
+<Clear explanation in Japanese of how to use this grammar point, including:
 - How it differs from similar Japanese grammar patterns
 - Common mistakes Japanese learners make
 - When and how to use it in daily conversation
 - Any important nuances or exceptions
 - Cultural context if relevant
-- How to avoid direct translation from Japanese>
+- How to avoid direct translation from Japanese
+- When to use this instead of similar Japanese expressions
+- Common pitfalls for Japanese learners>
 
 🎯 Examples:
 EN: <Natural English sentence using the grammar point>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information like:
+<Additional information in Japanese like:
 - Common mistakes to avoid
 - Related grammar points
 - Usage tips specific to Japanese learners
 - Formality level
 - Any special pronunciation or intonation notes
 - How this grammar point differs from similar Japanese patterns
-- When to use this instead of similar Japanese expressions>
+- When to use this instead of similar Japanese expressions
+- Practice tips for Japanese learners
+- How to recognize and use this pattern in real conversations>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -1070,11 +1128,11 @@ Do not include greetings, lesson titles, or number the sections.`
       if (channel) {
         await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
 
-        // Extract the example sentence and generate audio
+        // Extract the example sentence and generate audio using English TTS
         const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
         if (exampleMatch) {
           const exampleSentence = exampleMatch[1].trim();
-          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
           const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
           await channel.send({ files: [audioAttachment] });
         }
@@ -1099,8 +1157,8 @@ Do not include greetings, lesson titles, or number the sections.`
       }
       const question = enMatch ? enMatch[1] : 'English paragraph';
       
-      // Generate and send audio for the English text
-      const audioBuffer = await getTTSBuffer(question);
+      // Generate and send audio for the English text using English TTS
+      const audioBuffer = await getTTSBufferForLongText(question, true);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
       await message.channel.send({
         content: `**Daily English Quiz**\n${question}`,
@@ -1199,8 +1257,8 @@ Do not include greetings, lesson titles, or number the sections.`
       }
       const question = enMatch ? enMatch[1] : 'English paragraph';
 
-      // Generate and send audio for the English text
-      const audioBuffer = await getTTSBuffer(question);
+      // Generate and send audio for the English text using English TTS
+      const audioBuffer = await getTTSBufferForLongText(question, true);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
       await channel.send({
         content: `@everyone **Daily English Quiz**\n${question}`,
@@ -1422,10 +1480,31 @@ Explanation: <why, including key nuances and why other options are incorrect>
   return completion.choices[0].message.content;
 }
 
-// Helper to generate an English comprehension quiz using OpenAI
+// Helper function to split text into chunks for TTS
+async function getTTSBufferForLongText(text, isEnglish = false) {
+  // Split text into sentences
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const audioBuffers = [];
+
+  for (const sentence of sentences) {
+    const trimmedSentence = sentence.trim();
+    if (trimmedSentence) {
+      const buffer = isEnglish ? 
+        await getEnglishTTSBuffer(trimmedSentence) : 
+        await getTTSBuffer(trimmedSentence);
+      audioBuffers.push(buffer);
+    }
+  }
+
+  // Combine all audio buffers
+  return Buffer.concat(audioBuffers);
+}
+
 async function generateEnglishComprehensionQuiz() {
   const quizPrompt = `You are an English language comprehension quiz generator for Japanese learners.
-Generate an English paragraph (3-4 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+Generate an English paragraph (2-3 short sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+
+IMPORTANT: Keep each sentence short and concise (under 20 words). This is crucial for text-to-speech processing.
 
 The paragraph should:
 1. Include subtle nuances, implications, or cultural context that require deeper understanding
