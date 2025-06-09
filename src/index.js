@@ -375,8 +375,14 @@ Do not include greetings, lesson titles, or number the sections.`
           await message.channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
           console.log('Answer revealed successfully');
 
-          // Then end the poll
-          await pollMsg.end();
+          // Then end the poll by editing the message
+          await pollMsg.edit({
+            poll: {
+              question: { text: 'What is the most accurate English meaning?' },
+              answers: optionLabels.map(label => ({ text: label })),
+              duration: 0 // This effectively ends the poll
+            }
+          });
           console.log('Poll ended successfully');
         } catch (err) {
           console.error('Error ending poll or revealing answer:', err);
@@ -717,20 +723,21 @@ Level: <Beginner/Intermediate/Advanced>
 Part of Speech: <noun/verb/adjective/adverb/etc.>
 
 💡 Definition:
-<Detailed explanation including:
+<Detailed explanation in Japanese including:
 - Primary meaning and common usages
 - Any secondary or extended meanings
 - Nuances and connotations
 - How it differs from similar words
 - When and where it's commonly used
-- Common mistakes Japanese learners make with this word>
+- Common mistakes Japanese learners make with this word
+- How this word differs from similar Japanese words>
 
 🎯 Example:
 EN: <Natural English sentence using the word>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information like:
+<Additional information in Japanese like:
 - Common collocations and phrases
 - Related words and synonyms
 - Antonyms if applicable
@@ -1023,7 +1030,9 @@ Level: <Beginner/Intermediate/Advanced>
 - How it differs from similar Japanese grammar patterns
 - Common mistakes Japanese learners make
 - When and how to use it in daily conversation
-- Any important nuances or exceptions>
+- Any important nuances or exceptions
+- Cultural context if relevant
+- How to avoid direct translation from Japanese>
 
 🎯 Examples:
 EN: <Natural English sentence using the grammar point>
@@ -1035,7 +1044,9 @@ JP: <Japanese translation>
 - Related grammar points
 - Usage tips specific to Japanese learners
 - Formality level
-- Any special pronunciation or intonation notes>
+- Any special pronunciation or intonation notes
+- How this grammar point differs from similar Japanese patterns
+- When to use this instead of similar Japanese expressions>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -1427,7 +1438,11 @@ Then provide 4 Japanese options (A, B, C, D) for its meaning. The options should
 3. Include at least one option that's partially correct but misses a key nuance
 4. Have only one option that captures all aspects of the text accurately
 
-After the options, state the correct answer and a detailed explanation that highlights the key nuances and why the other options are incorrect.
+After the options, state the correct answer and provide a detailed explanation in Japanese that highlights:
+- The key nuances and why the other options are incorrect
+- Any cultural context or implications that might be unfamiliar to Japanese learners
+- Common mistakes Japanese learners might make with this type of text
+- How the English expressions differ from similar Japanese expressions
 
 Format:
 EN: <paragraph>
@@ -1436,7 +1451,7 @@ B) <option 2 in Japanese>
 C) <option 3 in Japanese>
 D) <option 4 in Japanese>
 Answer: <A/B/C/D>
-Explanation: <why, including key nuances and why other options are incorrect>
+Explanation: <detailed explanation in Japanese>
 `;
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
