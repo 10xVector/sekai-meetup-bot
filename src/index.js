@@ -1003,6 +1003,295 @@ Do not include greetings, lesson titles, or number the sections.`
       message.reply('❌ There was an error sending the message.');
     }
   }
+
+  if (message.content === '!englishquiz') {
+    try {
+      const quiz = await generateEnglishComprehensionQuiz();
+      // Extract the English paragraph and options
+      const enMatch = quiz.match(/EN:\s*(.+)/);
+      const options = [];
+      for (const letter of ['A', 'B', 'C', 'D']) {
+        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+        if (optMatch) options.push(optMatch[1]);
+      }
+      const question = enMatch ? enMatch[1] : 'English paragraph';
+      
+      await message.channel.send({
+        content: `**Daily English Quiz**\n${question}`
+      });
+
+      // Send the options as a message with a., b., c., d.
+      const optionLabels = ['a', 'b', 'c', 'd'];
+      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+      await message.channel.send(
+        `**Options:**\n${optionsText}`
+      );
+
+      // Send the poll with just a, b, c, d as options
+      const pollMsg = await message.channel.send({
+        poll: {
+          question: { text: 'What is the most accurate Japanese meaning?' },
+          answers: optionLabels.map(label => ({ text: label }))
+        }
+      });
+
+      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
+      const now = new Date();
+      const revealTime = new Date(now);
+      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
+      
+      // If it's already past 00:00 UTC, schedule for next day
+      if (now.getUTCHours() >= 0) {
+        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+      }
+
+      // Calculate time until reveal
+      const timeUntilReveal = revealTime.getTime() - now.getTime();
+
+      // Schedule the reveal
+      setTimeout(async () => {
+        try {
+          console.log('Attempting to reveal answer at scheduled time...');
+          
+          // Extract answer and explanation before ending the poll
+          console.log('Raw quiz content:', quiz);
+          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+          console.log('Answer match:', answerMatch);
+          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+          console.log('Explanation match:', explanationMatch);
+          
+          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
+          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+          console.log('Extracted answer:', answer);
+          console.log('Extracted explanation:', explanation);
+
+          // First send the explanation message
+          await message.channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          console.log('Answer revealed successfully');
+
+          // Then end the poll by editing the message
+          await pollMsg.edit({
+            poll: {
+              question: { text: 'What is the most accurate Japanese meaning?' },
+              answers: optionLabels.map(label => ({ text: label })),
+              duration: 0 // This effectively ends the poll
+            }
+          });
+          console.log('Poll ended successfully');
+        } catch (err) {
+          console.error('Error ending poll or revealing answer:', err);
+          console.error('Error stack:', err.stack);
+          // Try to send an error message to the channel
+          try {
+            await message.channel.send('❌ There was an error revealing the answer. Please check the logs.');
+          } catch (sendErr) {
+            console.error('Failed to send error message:', sendErr);
+          }
+        }
+      }, timeUntilReveal);
+    } catch (err) {
+      console.error('Error generating English quiz:', err);
+      message.reply('Sorry, something went wrong while generating the English quiz.');
+    }
+  }
+
+  if (message.content === '!forcescheduledjapanesequiz') {
+    try {
+      const quiz = await generateComprehensionQuiz();
+      const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
+      if (!channel) {
+        console.error('Quiz channel not found:', JAPANESE_QUIZ_CHANNEL_ID);
+        return;
+      }
+      // Extract the Japanese paragraph and options
+      const jpMatch = quiz.match(/JP:\s*(.+)/);
+      const options = [];
+      for (const letter of ['A', 'B', 'C', 'D']) {
+        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+        if (optMatch) options.push(optMatch[1]);
+      }
+      const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
+      
+      // First send the audio file
+      const audioBuffer = await getTTSBuffer(question);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
+      await channel.send({
+        content: `@everyone **Daily Quiz**\n${question}`,
+        files: [audioAttachment]
+      });
+
+      // Send the options as a message with a., b., c., d.
+      const optionLabels = ['a', 'b', 'c', 'd'];
+      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+      await channel.send(
+        `**Options:**\n${optionsText}`
+      );
+
+      // Send the poll with just a, b, c, d as options
+      const pollMsg = await channel.send({
+        poll: {
+          question: { text: 'What is the most accurate English meaning?' },
+          answers: optionLabels.map(label => ({ text: label }))
+        }
+      });
+
+      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
+      const now = new Date();
+      const revealTime = new Date(now);
+      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
+      
+      // If it's already past 00:00 UTC, schedule for next day
+      if (now.getUTCHours() >= 0) {
+        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+      }
+
+      // Calculate time until reveal
+      const timeUntilReveal = revealTime.getTime() - now.getTime();
+
+      // Schedule the reveal
+      setTimeout(async () => {
+        try {
+          console.log('Attempting to reveal answer at scheduled time...');
+          
+          // Extract answer and explanation before ending the poll
+          console.log('Raw quiz content:', quiz);
+          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+          console.log('Answer match:', answerMatch);
+          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+          console.log('Explanation match:', explanationMatch);
+          
+          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
+          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+          console.log('Extracted answer:', answer);
+          console.log('Extracted explanation:', explanation);
+
+          // First send the explanation message
+          await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          console.log('Answer revealed successfully');
+
+          // Then end the poll by editing the message
+          await pollMsg.edit({
+            poll: {
+              question: { text: 'What is the most accurate English meaning?' },
+              answers: optionLabels.map(label => ({ text: label })),
+              duration: 0 // This effectively ends the poll
+            }
+          });
+          console.log('Poll ended successfully');
+        } catch (err) {
+          console.error('Error ending poll or revealing answer:', err);
+          console.error('Error stack:', err.stack);
+          // Try to send an error message to the channel
+          try {
+            await channel.send('❌ There was an error revealing the answer. Please check the logs.');
+          } catch (sendErr) {
+            console.error('Failed to send error message:', sendErr);
+          }
+        }
+      }, timeUntilReveal);
+      message.reply('✅ Japanese quiz has been sent to the configured channel!');
+    } catch (err) {
+      console.error('Error generating forced scheduled Japanese quiz:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled Japanese quiz.');
+    }
+  }
+
+  if (message.content === '!forcescheduledenglishquiz') {
+    try {
+      const quiz = await generateEnglishComprehensionQuiz();
+      const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
+      if (!channel) {
+        console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
+        return;
+      }
+      // Extract the English paragraph and options
+      const enMatch = quiz.match(/EN:\s*(.+)/);
+      const options = [];
+      for (const letter of ['A', 'B', 'C', 'D']) {
+        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+        if (optMatch) options.push(optMatch[1]);
+      }
+      const question = enMatch ? enMatch[1] : 'English paragraph';
+
+      await channel.send({
+        content: `@everyone **Daily English Quiz**\n${question}`
+      });
+
+      // Send the options as a message with a., b., c., d.
+      const optionLabels = ['a', 'b', 'c', 'd'];
+      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+      await channel.send(
+        `**Options:**\n${optionsText}`
+      );
+
+      // Send the poll with just a, b, c, d as options
+      const pollMsg = await channel.send({
+        poll: {
+          question: { text: 'What is the most accurate Japanese meaning?' },
+          answers: optionLabels.map(label => ({ text: label }))
+        }
+      });
+
+      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
+      const now = new Date();
+      const revealTime = new Date(now);
+      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
+      
+      // If it's already past 00:00 UTC, schedule for next day
+      if (now.getUTCHours() >= 0) {
+        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+      }
+
+      // Calculate time until reveal
+      const timeUntilReveal = revealTime.getTime() - now.getTime();
+
+      // Schedule the reveal
+      setTimeout(async () => {
+        try {
+          console.log('Attempting to reveal answer at scheduled time...');
+          
+          // Extract answer and explanation before ending the poll
+          console.log('Raw quiz content:', quiz);
+          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+          console.log('Answer match:', answerMatch);
+          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+          console.log('Explanation match:', explanationMatch);
+          
+          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
+          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+          console.log('Extracted answer:', answer);
+          console.log('Extracted explanation:', explanation);
+
+          // First send the explanation message
+          await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          console.log('Answer revealed successfully');
+
+          // Then end the poll by editing the message
+          await pollMsg.edit({
+            poll: {
+              question: { text: 'What is the most accurate Japanese meaning?' },
+              answers: optionLabels.map(label => ({ text: label })),
+              duration: 0 // This effectively ends the poll
+            }
+          });
+          console.log('Poll ended successfully');
+        } catch (err) {
+          console.error('Error ending poll or revealing answer:', err);
+          console.error('Error stack:', err.stack);
+          // Try to send an error message to the channel
+          try {
+            await channel.send('❌ There was an error revealing the answer. Please check the logs.');
+          } catch (sendErr) {
+            console.error('Failed to send error message:', sendErr);
+          }
+        }
+      }, timeUntilReveal);
+      message.reply('✅ English quiz has been sent to the configured channel!');
+    } catch (err) {
+      console.error('Error generating forced scheduled English quiz:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled English quiz.');
+    }
+  }
 });
 
 // Helper to generate a comprehension quiz using OpenAI
@@ -1029,6 +1318,43 @@ A) <option 1>
 B) <option 2>
 C) <option 3>
 D) <option 4>
+Answer: <A/B/C/D>
+Explanation: <why, including key nuances and why other options are incorrect>
+`;
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: quizPrompt },
+      { role: 'user', content: 'Generate a new quiz.' }
+    ]
+  });
+  return completion.choices[0].message.content;
+}
+
+// Helper to generate an English comprehension quiz using OpenAI
+async function generateEnglishComprehensionQuiz() {
+  const quizPrompt = `You are an English language comprehension quiz generator for Japanese learners.
+Generate an English paragraph (3-4 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+
+The paragraph should:
+1. Include subtle nuances, implications, or cultural context that require deeper understanding
+2. Use a mix of grammar patterns and vocabulary that Japanese learners might find challenging
+3. Have some ambiguity or room for interpretation in certain aspects
+
+Then provide 4 Japanese options (A, B, C, D) for its meaning. The options should:
+1. All be plausible interpretations of the text
+2. Differ in subtle ways (e.g., timing, speaker's attitude, implied meaning, cultural context)
+3. Include at least one option that's partially correct but misses a key nuance
+4. Have only one option that captures all aspects of the text accurately
+
+After the options, state the correct answer and a detailed explanation that highlights the key nuances and why the other options are incorrect.
+
+Format:
+EN: <paragraph>
+A) <option 1 in Japanese>
+B) <option 2 in Japanese>
+C) <option 3 in Japanese>
+D) <option 4 in Japanese>
 Answer: <A/B/C/D>
 Explanation: <why, including key nuances and why other options are incorrect>
 `;
@@ -1273,6 +1599,102 @@ Do not include greetings, lesson titles, or number the sections.`
     await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
   } catch (err) {
     console.error('Error generating scheduled grammar:', err);
+  }
+});
+
+// Add new scheduled job for English quiz
+schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
+  try {
+    const quiz = await generateEnglishComprehensionQuiz();
+    const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
+    if (!channel) {
+      console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
+      return;
+    }
+    // Extract the English paragraph and options
+    const enMatch = quiz.match(/EN:\s*(.+)/);
+    const options = [];
+    for (const letter of ['A', 'B', 'C', 'D']) {
+      const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+      if (optMatch) options.push(optMatch[1]);
+    }
+    const question = enMatch ? enMatch[1] : 'English paragraph';
+
+    await channel.send({
+      content: `@everyone **Daily English Quiz**\n${question}`
+    });
+
+    // Send the options as a message with a., b., c., d.
+    const optionLabels = ['a', 'b', 'c', 'd'];
+    let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+    await channel.send(
+      `**Options:**\n${optionsText}`
+    );
+
+    // Send the poll with just a, b, c, d as options
+    const pollMsg = await channel.send({
+      poll: {
+        question: { text: 'What is the most accurate Japanese meaning?' },
+        answers: optionLabels.map(label => ({ text: label }))
+      }
+    });
+
+    // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
+    const now = new Date();
+    const revealTime = new Date(now);
+    revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
+    
+    // If it's already past 00:00 UTC, schedule for next day
+    if (now.getUTCHours() >= 0) {
+      revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+    }
+
+    // Calculate time until reveal
+    const timeUntilReveal = revealTime.getTime() - now.getTime();
+
+    // Schedule the reveal
+    setTimeout(async () => {
+      try {
+        console.log('Attempting to reveal answer at scheduled time...');
+        
+        // Extract answer and explanation before ending the poll
+        console.log('Raw quiz content:', quiz);
+        const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+        console.log('Answer match:', answerMatch);
+        const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+        console.log('Explanation match:', explanationMatch);
+        
+        let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
+        let explanation = explanationMatch ? explanationMatch[1].trim() : '';
+        console.log('Extracted answer:', answer);
+        console.log('Extracted explanation:', explanation);
+
+        // First send the explanation message
+        await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+        console.log('Answer revealed successfully');
+
+        // Then end the poll by editing the message
+        await pollMsg.edit({
+          poll: {
+            question: { text: 'What is the most accurate Japanese meaning?' },
+            answers: optionLabels.map(label => ({ text: label })),
+            duration: 0 // This effectively ends the poll
+          }
+        });
+        console.log('Poll ended successfully');
+      } catch (err) {
+        console.error('Error ending poll or revealing answer:', err);
+        console.error('Error stack:', err.stack);
+        // Try to send an error message to the channel
+        try {
+          await channel.send('❌ There was an error revealing the answer. Please check the logs.');
+        } catch (sendErr) {
+          console.error('Failed to send error message:', sendErr);
+        }
+      }
+    }, timeUntilReveal);
+  } catch (err) {
+    console.error('Error generating scheduled English quiz:', err);
   }
 });
 
