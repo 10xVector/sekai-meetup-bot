@@ -836,7 +836,7 @@ Do not include greetings, lesson titles, or number the sections.`
           await channel.send({ files: [audioAttachment] });
         }
         // Add prompt for users to create their own examples
-        await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+        await channel.send("💡 この単語を使って例文を作ってみましょう！チャットで共有してください。");
       }
     } catch (err) {
       console.error('Error generating English word:', err);
@@ -1165,7 +1165,7 @@ Do not include greetings, lesson titles, or number the sections.`
       // Send the poll with just a, b, c, d as options
       const pollMsg = await message.channel.send({
         poll: {
-          question: { text: 'What is the most accurate Japanese meaning?' },
+          question: { text: 'この英文の意味として最も適切なのは？' },
           answers: optionLabels.map(label => ({ text: label }))
         }
       });
@@ -1201,13 +1201,13 @@ Do not include greetings, lesson titles, or number the sections.`
           console.log('Extracted explanation:', explanation);
 
           // First send the explanation message
-          await message.channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          await message.channel.send(`✅ **正解:** ${answer}\n${explanation}`);
           console.log('Answer revealed successfully');
 
           // Then end the poll by editing the message
           await pollMsg.edit({
             poll: {
-              question: { text: 'What is the most accurate Japanese meaning?' },
+              question: { text: 'この英文の意味として最も適切なのは？' },
               answers: optionLabels.map(label => ({ text: label })),
               duration: 0 // This effectively ends the poll
             }
@@ -1265,7 +1265,7 @@ Do not include greetings, lesson titles, or number the sections.`
       // Send the poll with just a, b, c, d as options
       const pollMsg = await channel.send({
         poll: {
-          question: { text: 'What is the most accurate Japanese meaning?' },
+          question: { text: 'この英文の意味として最も適切なのは？' },
           answers: optionLabels.map(label => ({ text: label }))
         }
       });
@@ -1301,13 +1301,13 @@ Do not include greetings, lesson titles, or number the sections.`
           console.log('Extracted explanation:', explanation);
 
           // First send the explanation message
-          await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
           console.log('Answer revealed successfully');
 
           // Then end the poll by editing the message
           await pollMsg.edit({
             poll: {
-              question: { text: 'What is the most accurate Japanese meaning?' },
+              question: { text: 'この英文の意味として最も適切なのは？' },
               answers: optionLabels.map(label => ({ text: label })),
               duration: 0 // This effectively ends the poll
             }
@@ -1366,7 +1366,7 @@ Do not include greetings, lesson titles, or number the sections.`
       // Send the poll with just a, b, c, d as options
       const pollMsg = await channel.send({
         poll: {
-          question: { text: 'What is the most accurate English meaning?' },
+          question: { text: 'この英文の意味として最も適切なのは？' },
           answers: optionLabels.map(label => ({ text: label }))
         }
       });
@@ -1402,13 +1402,13 @@ Do not include greetings, lesson titles, or number the sections.`
           console.log('Extracted explanation:', explanation);
 
           // First send the explanation message
-          await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+          await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
           console.log('Answer revealed successfully');
 
           // Then end the poll by editing the message
           await pollMsg.edit({
             poll: {
-              question: { text: 'What is the most accurate English meaning?' },
+              question: { text: 'この英文の意味として最も適切なのは？' },
               answers: optionLabels.map(label => ({ text: label })),
               duration: 0 // This effectively ends the poll
             }
@@ -1568,7 +1568,7 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     // Send the poll with just a, b, c, d as options
     const pollMsg = await channel.send({
       poll: {
-        question: { text: 'What is the most accurate English meaning?' },
+        question: { text: 'この英文の意味として最も適切なのは？' },
         answers: optionLabels.map(label => ({ text: label }))
       }
     });
@@ -1604,13 +1604,13 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
         console.log('Extracted explanation:', explanation);
 
         // First send the explanation message
-        await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+        await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
         console.log('Answer revealed successfully');
 
         // Then end the poll by editing the message
         await pollMsg.edit({
           poll: {
-            question: { text: 'What is the most accurate English meaning?' },
+            question: { text: 'この英文の意味として最も適切なのは？' },
             answers: optionLabels.map(label => ({ text: label })),
             duration: 0 // This effectively ends the poll
           }
@@ -1784,8 +1784,12 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
     }
     const question = enMatch ? enMatch[1] : 'English paragraph';
 
+    // Send the audio file
+    const audioBuffer = await getTTSBufferForLongText(question, true);
+    const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
     await channel.send({
-      content: `@everyone **Daily English Quiz**\n${question}`
+      content: `@everyone **Daily English Quiz**\n${question}`,
+      files: [audioAttachment]
     });
 
     // Send the options as a message with a., b., c., d.
@@ -1798,7 +1802,7 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
     // Send the poll with just a, b, c, d as options
     const pollMsg = await channel.send({
       poll: {
-        question: { text: 'What is the most accurate Japanese meaning?' },
+        question: { text: 'この英文の意味として最も適切なのは？' },
         answers: optionLabels.map(label => ({ text: label }))
       }
     });
@@ -1834,13 +1838,13 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
         console.log('Extracted explanation:', explanation);
 
         // First send the explanation message
-        await channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
+        await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
         console.log('Answer revealed successfully');
 
         // Then end the poll by editing the message
         await pollMsg.edit({
           poll: {
-            question: { text: 'What is the most accurate Japanese meaning?' },
+            question: { text: 'この英文の意味として最も適切なのは？' },
             answers: optionLabels.map(label => ({ text: label })),
             duration: 0 // This effectively ends the poll
           }
@@ -1953,7 +1957,7 @@ Do not include greetings, lesson titles, or number the sections.`
       await channel.send({ files: [audioAttachment] });
     }
     // Add prompt for users to create their own examples
-    await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+    await channel.send("💡 この単語を使って例文を作ってみましょう！チャットで共有してください。");
   } catch (err) {
     console.error('Error generating scheduled English word:', err);
   }
@@ -2049,7 +2053,7 @@ Do not include greetings, lesson titles, or number the sections.`
       await channel.send({ files: [audioAttachment] });
     }
     // Add prompt for users to create their own examples
-    await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    await channel.send("💡 この文法を使って例文を作ってみましょう！チャットで共有してください。");
   } catch (err) {
     console.error('Error generating scheduled English grammar:', err);
   }
