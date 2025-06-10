@@ -1872,4 +1872,217 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
   }
 });
 
+// Scheduled daily English word
+schedule.scheduleJob('0 5 * * *', async () => { // 5:00 AM UTC = 2:00 PM JST
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English language tutor generating a word of the day card for Japanese learners.
+Each time, select a different English word from a wide range of difficulty levels.
+Focus on practical, commonly used vocabulary that Japanese learners might find challenging.
+Avoid repeating words from previous days.
+
+Consider these categories when selecting words:
+- Basic nouns (Beginner)
+- Common verbs (Beginner-Intermediate)
+- Adjectives (Beginner-Intermediate)
+- Adverbs (Beginner-Intermediate)
+- Business vocabulary (Intermediate-Advanced)
+- Academic terms (Intermediate-Advanced)
+- Colloquial expressions (Intermediate)
+- Phrasal verbs (Intermediate)
+- Compound words (Intermediate)
+- Idiomatic expressions (Intermediate-Advanced)
+- Technical terms (Intermediate-Advanced)
+- Slang and casual expressions (Intermediate)
+- Formal expressions (Intermediate-Advanced)
+- Cultural terms (Intermediate)
+- Seasonal vocabulary (Beginner-Intermediate)
+- Emotion-related words (Beginner-Intermediate)
+- Time-related vocabulary (Beginner-Intermediate)
+- Location and direction words (Beginner-Intermediate)
+- Family and relationship terms (Beginner-Intermediate)
+- Prepositional phrases (Intermediate)
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📝 Word:
+EN: <the word in English>
+JP: <Japanese translation>
+Level: <Beginner/Intermediate/Advanced>
+Part of Speech: <noun/verb/adjective/adverb/etc.>
+
+💡 Definition:
+<Detailed explanation in Japanese including:
+- Primary meaning and common usages
+- Any secondary or extended meanings
+- Nuances and connotations
+- How it differs from similar words
+- When and where it's commonly used
+- Common mistakes Japanese learners make with this word
+- How this word differs from similar Japanese words>
+
+🎯 Example:
+EN: <Natural English sentence using the word>
+JP: <Japanese translation>
+
+📌 Notes:
+<Additional information in Japanese like:
+- Common collocations and phrases
+- Related words and synonyms
+- Antonyms if applicable
+- Usage tips and common mistakes
+- Cultural context if relevant
+- Formality level
+- Any special pronunciation or intonation notes
+- How this word differs from similar Japanese words>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me an English word of the day for Japanese learners.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the word text
+    const imageBuffer = generateCardImage(reply);
+
+    // Send to the English word channel
+    const channel = client.channels.cache.get(ENGLISH_WORD_CHANNEL_ID);
+    if (!channel) {
+      console.error('English word channel not found:', ENGLISH_WORD_CHANNEL_ID);
+      return;
+    }
+
+    await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
+
+    // Extract the example sentence and generate audio using English TTS
+    const exampleMatch = reply.match(/🎯 Example:\nEN: (.*?)(?=\n|$)/);
+    if (exampleMatch) {
+      const exampleSentence = exampleMatch[1].trim();
+      const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+      await channel.send({ files: [audioAttachment] });
+    }
+    // Add prompt for users to create their own examples
+    await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
+  } catch (err) {
+    console.error('Error generating scheduled English word:', err);
+  }
+});
+
+// Scheduled daily English grammar
+schedule.scheduleJob('0 6 * * *', async () => { // 6:00 AM UTC = 3:00 PM JST
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English language tutor generating a grammar point of the day card for Japanese learners.
+Each time, select a different English grammar point from a wide range of difficulty levels.
+Focus on practical, commonly used grammar patterns that Japanese learners might find challenging.
+Avoid repeating grammar points from previous days.
+
+Consider these categories when selecting grammar points:
+- Basic sentence patterns (Beginner)
+- Verb tenses and forms (Beginner-Intermediate)
+- Prepositions and their uses (Beginner-Intermediate)
+- Conditional forms (Intermediate)
+- Modal verbs (Intermediate)
+- Complex sentence structures (Intermediate-Advanced)
+- Colloquial expressions (Intermediate)
+- Formal and business English (Intermediate-Advanced)
+- Time-related expressions (Beginner-Intermediate)
+- Passive voice (Intermediate)
+- Expressing probability and possibility (Intermediate)
+- Expressing intention and volition (Intermediate)
+- Expressing obligation and necessity (Intermediate)
+- Expressing permission and prohibition (Intermediate)
+- Expressing giving and receiving (Intermediate)
+- Expressing comparison and contrast (Intermediate)
+- Expressing cause and effect (Intermediate)
+- Expressing purpose and reason (Intermediate)
+- Expressing conditions and suppositions (Intermediate)
+- Expressing time and sequence (Intermediate)
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+EN: <Name of the grammar point in English>
+JP: <Japanese explanation of the grammar point>
+Level: <Beginner/Intermediate/Advanced>
+
+💡 Explanation:
+<Clear explanation in Japanese of how to use this grammar point, including:
+- How it differs from similar Japanese grammar patterns
+- Common mistakes Japanese learners make
+- When and how to use it in daily conversation
+- Any important nuances or exceptions
+- Cultural context if relevant
+- How to avoid direct translation from Japanese
+- When to use this instead of similar Japanese expressions
+- Common pitfalls for Japanese learners>
+
+🎯 Examples:
+EN: <Natural English sentence using the grammar point>
+JP: <Japanese translation>
+
+📌 Notes:
+<Additional information in Japanese like:
+- Common mistakes to avoid
+- Related grammar points
+- Usage tips specific to Japanese learners
+- Formality level
+- Any special pronunciation or intonation notes
+- How this grammar point differs from similar Japanese patterns
+- When to use this instead of similar Japanese expressions
+- Practice tips for Japanese learners
+- How to recognize and use this pattern in real conversations>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me an English grammar point of the day for Japanese learners.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the grammar text
+    const imageBuffer = generateCardImage(reply);
+
+    // Send to the English grammar channel
+    const channel = client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID);
+    if (!channel) {
+      console.error('English grammar channel not found:', ENGLISH_GRAMMAR_CHANNEL_ID);
+      return;
+    }
+
+    await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+
+    // Extract the example sentence and generate audio using English TTS
+    const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
+    if (exampleMatch) {
+      const exampleSentence = exampleMatch[1].trim();
+      const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+      await channel.send({ files: [audioAttachment] });
+    }
+    // Add prompt for users to create their own examples
+    await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+  } catch (err) {
+    console.error('Error generating scheduled English grammar:', err);
+  }
+});
+
 client.login(DISCORD_TOKEN);
