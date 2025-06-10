@@ -790,7 +790,7 @@ Level: <Beginner/Intermediate/Advanced>
 Part of Speech: <noun/verb/adjective/adverb/etc.>
 
 💡 Definition:
-<Keep it brief and clear:
+<Keep it brief and clear in Japanese:
 - Primary meaning (1-2 sentences)
 - One common usage example
 - One key difference from similar Japanese words>
@@ -800,7 +800,7 @@ EN: <Natural English sentence using the word>
 JP: <Japanese translation>
 
 📌 Notes:
-<Keep it concise:
+<Keep it concise in Japanese:
 - One common mistake to avoid
 - One related word or synonym
 - One usage tip>
@@ -1081,7 +1081,7 @@ JP: <Japanese explanation of the grammar point>
 Level: <Beginner/Intermediate/Advanced>
 
 💡 Explanation:
-<Keep it brief and clear:
+<Keep it brief and clear in Japanese:
 - Basic usage (1-2 sentences)
 - One key difference from Japanese
 - One common mistake to avoid>
@@ -1091,7 +1091,7 @@ EN: <Natural English sentence using the grammar point>
 JP: <Japanese translation>
 
 📌 Notes:
-<Keep it concise:
+<Keep it concise in Japanese:
 - One usage tip
 - One related grammar point
 - One practice suggestion>
@@ -1785,7 +1785,7 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
     const question = enMatch ? enMatch[1] : 'English paragraph';
 
     // Send the audio file
-    const audioBuffer = await getTTSBufferForLongText(question, true);
+    const audioBuffer = await getEnglishTTSBuffer(question);
     const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
     await channel.send({
       content: `@everyone **Daily English Quiz**\n${question}`,
@@ -1910,7 +1910,7 @@ Level: <Beginner/Intermediate/Advanced>
 Part of Speech: <noun/verb/adjective/adverb/etc.>
 
 💡 Definition:
-<Keep it brief and clear:
+<Keep it brief and clear in Japanese:
 - Primary meaning (1-2 sentences)
 - One common usage example
 - One key difference from similar Japanese words>
@@ -1920,7 +1920,7 @@ EN: <Natural English sentence using the word>
 JP: <Japanese translation>
 
 📌 Notes:
-<Keep it concise:
+<Keep it concise in Japanese:
 - One common mistake to avoid
 - One related word or synonym
 - One usage tip>
@@ -2006,7 +2006,7 @@ JP: <Japanese explanation of the grammar point>
 Level: <Beginner/Intermediate/Advanced>
 
 💡 Explanation:
-<Keep it brief and clear:
+<Keep it brief and clear in Japanese:
 - Basic usage (1-2 sentences)
 - One key difference from Japanese
 - One common mistake to avoid>
@@ -2016,7 +2016,7 @@ EN: <Natural English sentence using the grammar point>
 JP: <Japanese translation>
 
 📌 Notes:
-<Keep it concise:
+<Keep it concise in Japanese:
 - One usage tip
 - One related grammar point
 - One practice suggestion>
