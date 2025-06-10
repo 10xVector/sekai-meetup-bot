@@ -161,23 +161,14 @@ async function getTTSBuffer(text) {
 }
 
 async function getEnglishTTSBuffer(text) {
-  // Randomly select a voice from the available options
-  const selectedVoice = ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)];
-  
-  const [response] = await ttsClient.synthesizeSpeech({
+  const request = {
     input: { text },
-    voice: { 
-      languageCode: 'en-US',
-      name: selectedVoice.name,
-      ssmlGender: selectedVoice.ssmlGender
-    },
-    audioConfig: { 
-      audioEncoding: 'MP3',
-      speakingRate: selectedVoice.speakingRate,
-      pitch: selectedVoice.pitch
-    },
-  });
-  return Buffer.from(response.audioContent, 'binary');
+    voice: { languageCode: 'en-US', name: 'en-US-Neural2-F', ssmlGender: 'FEMALE' },
+    audioConfig: { audioEncoding: 'MP3' },
+  };
+
+  const [response] = await ttsClient.synthesizeSpeech(request);
+  return response.audioContent;
 }
 
 client.once('ready', () => {
@@ -777,29 +768,20 @@ Level: <Beginner/Intermediate/Advanced>
 Part of Speech: <noun/verb/adjective/adverb/etc.>
 
 💡 Definition:
-<Detailed explanation in Japanese including:
-- Primary meaning and common usages
-- Any secondary or extended meanings
-- Nuances and connotations
-- How it differs from similar words
-- When and where it's commonly used
-- Common mistakes Japanese learners make with this word
-- How this word differs from similar Japanese words>
+<Keep it brief and clear:
+- Primary meaning (1-2 sentences)
+- One common usage example
+- One key difference from similar Japanese words>
 
 🎯 Example:
 EN: <Natural English sentence using the word>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information in Japanese like:
-- Common collocations and phrases
-- Related words and synonyms
-- Antonyms if applicable
-- Usage tips and common mistakes
-- Cultural context if relevant
-- Formality level
-- Any special pronunciation or intonation notes
-- How this word differs from similar Japanese words>
+<Keep it concise:
+- One common mistake to avoid
+- One related word or synonym
+- One usage tip>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -981,23 +963,20 @@ JP: <Japanese explanation of the grammar point>
 Level: <Beginner/Intermediate/Advanced>
 
 💡 Explanation:
-<Clear explanation of how to use this grammar point, including:
-- How it differs from similar Japanese grammar patterns
-- Common mistakes Japanese learners make
-- When and how to use it in daily conversation
-- Any important nuances or exceptions>
+<Keep it brief and clear:
+- Basic usage (1-2 sentences)
+- One key difference from Japanese
+- One common mistake to avoid>
 
 🎯 Examples:
 EN: <Natural English sentence using the grammar point>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information like:
-- Common mistakes to avoid
-- Related grammar points
-- Usage tips specific to Japanese learners
-- Formality level
-- Any special pronunciation or intonation notes>
+<Keep it concise:
+- One usage tip
+- One related grammar point
+- One practice suggestion>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -1080,31 +1059,20 @@ JP: <Japanese explanation of the grammar point>
 Level: <Beginner/Intermediate/Advanced>
 
 💡 Explanation:
-<Clear explanation in Japanese of how to use this grammar point, including:
-- How it differs from similar Japanese grammar patterns
-- Common mistakes Japanese learners make
-- When and how to use it in daily conversation
-- Any important nuances or exceptions
-- Cultural context if relevant
-- How to avoid direct translation from Japanese
-- When to use this instead of similar Japanese expressions
-- Common pitfalls for Japanese learners>
+<Keep it brief and clear:
+- Basic usage (1-2 sentences)
+- One key difference from Japanese
+- One common mistake to avoid>
 
 🎯 Examples:
 EN: <Natural English sentence using the grammar point>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information in Japanese like:
-- Common mistakes to avoid
-- Related grammar points
-- Usage tips specific to Japanese learners
-- Formality level
-- Any special pronunciation or intonation notes
-- How this grammar point differs from similar Japanese patterns
-- When to use this instead of similar Japanese expressions
-- Practice tips for Japanese learners
-- How to recognize and use this pattern in real conversations>
+<Keep it concise:
+- One usage tip
+- One related grammar point
+- One practice suggestion>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -1128,7 +1096,7 @@ Do not include greetings, lesson titles, or number the sections.`
       if (channel) {
         await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
 
-        // Extract the example sentence and generate audio using English TTS
+        // Extract the example sentence and generate audio
         const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
         if (exampleMatch) {
           const exampleSentence = exampleMatch[1].trim();
@@ -1916,29 +1884,20 @@ Level: <Beginner/Intermediate/Advanced>
 Part of Speech: <noun/verb/adjective/adverb/etc.>
 
 💡 Definition:
-<Detailed explanation in Japanese including:
-- Primary meaning and common usages
-- Any secondary or extended meanings
-- Nuances and connotations
-- How it differs from similar words
-- When and where it's commonly used
-- Common mistakes Japanese learners make with this word
-- How this word differs from similar Japanese words>
+<Keep it brief and clear:
+- Primary meaning (1-2 sentences)
+- One common usage example
+- One key difference from similar Japanese words>
 
 🎯 Example:
 EN: <Natural English sentence using the word>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information in Japanese like:
-- Common collocations and phrases
-- Related words and synonyms
-- Antonyms if applicable
-- Usage tips and common mistakes
-- Cultural context if relevant
-- Formality level
-- Any special pronunciation or intonation notes
-- How this word differs from similar Japanese words>
+<Keep it concise:
+- One common mistake to avoid
+- One related word or synonym
+- One usage tip>
 
 Do not include greetings, lesson titles, or number the sections.`
         },
@@ -2021,31 +1980,20 @@ JP: <Japanese explanation of the grammar point>
 Level: <Beginner/Intermediate/Advanced>
 
 💡 Explanation:
-<Clear explanation in Japanese of how to use this grammar point, including:
-- How it differs from similar Japanese grammar patterns
-- Common mistakes Japanese learners make
-- When and how to use it in daily conversation
-- Any important nuances or exceptions
-- Cultural context if relevant
-- How to avoid direct translation from Japanese
-- When to use this instead of similar Japanese expressions
-- Common pitfalls for Japanese learners>
+<Keep it brief and clear:
+- Basic usage (1-2 sentences)
+- One key difference from Japanese
+- One common mistake to avoid>
 
 🎯 Examples:
 EN: <Natural English sentence using the grammar point>
 JP: <Japanese translation>
 
 📌 Notes:
-<Additional information in Japanese like:
-- Common mistakes to avoid
-- Related grammar points
-- Usage tips specific to Japanese learners
-- Formality level
-- Any special pronunciation or intonation notes
-- How this grammar point differs from similar Japanese patterns
-- When to use this instead of similar Japanese expressions
-- Practice tips for Japanese learners
-- How to recognize and use this pattern in real conversations>
+<Keep it concise:
+- One usage tip
+- One related grammar point
+- One practice suggestion>
 
 Do not include greetings, lesson titles, or number the sections.`
         },
@@ -2070,7 +2018,7 @@ Do not include greetings, lesson titles, or number the sections.`
 
     await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
 
-    // Extract the example sentence and generate audio using English TTS
+    // Extract the example sentence and generate audio
     const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
     if (exampleMatch) {
       const exampleSentence = exampleMatch[1].trim();

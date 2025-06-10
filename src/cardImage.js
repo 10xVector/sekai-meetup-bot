@@ -62,12 +62,12 @@ module.exports = function generateCardImage(smalltalkText) {
   const blocks = processedText.split(/\n\n/);
   const minWidth = 800;
   const maxWidth = 1200;
-  const baseHeight = 600;
-  const headerHeight = Math.floor(baseHeight / 3);
+  const baseHeight = 800; // Increased base height
+  const headerHeight = Math.floor(baseHeight / 4); // Reduced header proportion
   const leftPad = 50;
   const titleHeight = 48;
-  const blockSpacing = 32;
-  const lineHeight = 32;
+  const blockSpacing = 40; // Increased spacing between blocks
+  const lineHeight = 36; // Increased line height for better readability
 
   // --- First pass: measure required width and height ---
   // Create a temp canvas for measurement
@@ -89,29 +89,36 @@ module.exports = function generateCardImage(smalltalkText) {
   const contentWidth = Math.min(Math.max(maxLineWidth + 2 * leftPad, minWidth), maxWidth);
   const width = contentWidth;
 
-  // Measure height
+  // Measure height with proper text wrapping
   let y = headerHeight + 50 + titleHeight;
   for (const block of blocks) {
     const lines = block.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      // Estimate wrapped lines
-      let words = lines[i].split(' ');
-      let line = '';
-      for (let n = 0; n < words.length; n++) {
-        let testLine = line + words[n] + ' ';
-        let metrics = tempCtx.measureText(testLine);
-        let testWidth = metrics.width;
-        if (testWidth > contentWidth - 2 * leftPad && n > 0) {
-          y += lineHeight;
-          line = words[n] + ' ';
+    for (const line of lines) {
+      const words = line.split(' ');
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (tempCtx.measureText(testLine).width <= contentWidth - 2 * leftPad) {
+          currentLine = testLine;
         } else {
-          line = testLine;
+          if (currentLine) {
+            y += lineHeight;
+            currentLine = word;
+          } else {
+            // Handle single words that are too long
+            y += lineHeight;
+            currentLine = '';
+          }
         }
       }
-      y += lineHeight; // Last line
+      if (currentLine) {
+        y += lineHeight;
+      }
     }
     y += blockSpacing;
   }
+
   // Add space for header, title, and border
   let totalHeight = y + 50;
   if (totalHeight < baseHeight) totalHeight = baseHeight;
@@ -191,9 +198,9 @@ module.exports = function generateCardImage(smalltalkText) {
   ctx.font = '26px NotoSansJP';
   for (const block of blocks) {
     const lines = block.split('\n');
-    for (let i = 0; i < lines.length; i++) {
+    for (const line of lines) {
       ctx.fillStyle = '#222';
-      y = wrapText(ctx, lines[i], leftPad, y, contentWidth - 2 * leftPad, lineHeight);
+      y = wrapText(ctx, line, leftPad, y, contentWidth - 2 * leftPad, lineHeight);
     }
     y += blockSpacing;
   }
