@@ -109,34 +109,32 @@ const JAPANESE_VOICES = [
 // Available English voices for rotation
 const ENGLISH_VOICES = [
   {
-    name: 'en-US-Neural2-A',
-    speakingRate: 1.0,
-    pitch: 0,
+    name: 'en-US-Chirp3-HD-Achernar',
     ssmlGender: 'FEMALE'
   },
   {
-    name: 'en-US-Neural2-C',
-    speakingRate: 1.0,
-    pitch: 0,
+    name: 'en-US-Chirp3-HD-Erinome',
     ssmlGender: 'FEMALE'
   },
   {
-    name: 'en-US-Neural2-D',
-    speakingRate: 1.0,
-    pitch: 0,
+    name: 'en-US-Chirp3-HD-Sulafat',
+    ssmlGender: 'FEMALE'
+  },
+  {
+    name: 'en-US-Chirp3-HD-Vindemiatrix',
+    ssmlGender: 'FEMALE'
+  },
+  {
+    name: 'en-US-Chirp3-HD-Algenib',
     ssmlGender: 'MALE'
   },
   {
-    name: 'en-US-Neural2-E',
-    speakingRate: 1.0,
-    pitch: 0,
+    name: 'en-US-Chirp3-HD-Achird',
     ssmlGender: 'MALE'
   },
   {
-    name: 'en-US-Neural2-F',
-    speakingRate: 1.0,
-    pitch: 0,
-    ssmlGender: 'FEMALE'
+    name: 'en-US-Chirp3-HD-Alnilam',
+    ssmlGender: 'MALE'
   }
 ];
 
@@ -161,10 +159,34 @@ async function getTTSBuffer(text) {
 }
 
 async function getEnglishTTSBuffer(text) {
+  // Define available voices
+  const ENGLISH_VOICES = [
+    // Female voices
+    { name: 'en-US-Chirp3-HD-Achernar', ssmlGender: 'FEMALE' },
+    { name: 'en-US-Chirp3-HD-Erinome', ssmlGender: 'FEMALE' },
+    { name: 'en-US-Chirp3-HD-Sulafat', ssmlGender: 'FEMALE' },
+    { name: 'en-US-Chirp3-HD-Vindemiatrix', ssmlGender: 'FEMALE' },
+    // Male voices
+    { name: 'en-US-Chirp3-HD-Algenib', ssmlGender: 'MALE' },
+    { name: 'en-US-Chirp3-HD-Achird', ssmlGender: 'MALE' },
+    { name: 'en-US-Chirp3-HD-Alnilam', ssmlGender: 'MALE' }
+  ];
+
+  // Randomly select a voice
+  const selectedVoice = ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)];
+  
   const request = {
     input: { text },
-    voice: { languageCode: 'en-US', name: 'en-US-Neural2-F', ssmlGender: 'FEMALE' },
-    audioConfig: { audioEncoding: 'MP3' },
+    voice: { 
+      languageCode: 'en-US',
+      name: selectedVoice.name,
+      ssmlGender: selectedVoice.ssmlGender
+    },
+    audioConfig: { 
+      audioEncoding: 'MP3',
+      speakingRate: 1.0,
+      pitch: 0.0
+    },
   };
 
   const [response] = await ttsClient.synthesizeSpeech(request);
