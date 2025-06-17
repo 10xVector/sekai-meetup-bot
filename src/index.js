@@ -1137,93 +1137,9 @@ Do not include greetings, lesson titles, or number the sections.`
 
   if (message.content === '!englishquiz') {
     try {
+      const channel = message.channel;
       const quiz = await generateEnglishComprehensionQuiz();
-      // Extract the English paragraph and options
-      const enMatch = quiz.match(/EN:\s*(.+)/);
-      const options = [];
-      for (const letter of ['A', 'B', 'C', 'D']) {
-        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
-        if (optMatch) options.push(optMatch[1]);
-      }
-      const question = enMatch ? enMatch[1] : 'English paragraph';
-      
-      // Generate and send audio for the English text using English TTS
-      const audioBuffer = await getTTSBufferForLongText(question, true);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
-      await message.channel.send({
-        content: `**Daily English Quiz**\n${question}`,
-        files: [audioAttachment]
-      });
-
-      // Send the options as a message with a., b., c., d.
-      const optionLabels = ['a', 'b', 'c', 'd'];
-      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-      await message.channel.send(
-        `**Options:**\n${optionsText}`
-      );
-
-      // Send the poll with just a, b, c, d as options
-      const pollMsg = await message.channel.send({
-        poll: {
-          question: { text: 'この英文の意味として最も適切なのは？' },
-          answers: optionLabels.map(label => ({ text: label }))
-        }
-      });
-
-      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-      const now = new Date();
-      const revealTime = new Date(now);
-      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-      
-      // If it's already past 00:00 UTC, schedule for next day
-      if (now.getUTCHours() >= 0) {
-        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
-      }
-
-      // Calculate time until reveal
-      const timeUntilReveal = revealTime.getTime() - now.getTime();
-
-      // Schedule the reveal
-      setTimeout(async () => {
-        try {
-          console.log('Attempting to reveal answer at scheduled time...');
-          
-          // Extract answer and explanation before ending the poll
-          console.log('Raw quiz content:', quiz);
-          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-          console.log('Answer match:', answerMatch);
-          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-          console.log('Explanation match:', explanationMatch);
-          
-          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-          console.log('Extracted answer:', answer);
-          console.log('Extracted explanation:', explanation);
-
-          // First send the explanation message
-          await message.channel.send(`✅ **正解:** ${answer}\n${explanation}`);
-          console.log('Answer revealed successfully');
-
-          // Then end the poll by editing the message
-          await pollMsg.edit({
-            poll: {
-              question: { text: 'この英文の意味として最も適切なのは？' },
-              answers: optionLabels.map(label => ({ text: label })),
-              duration: 0 // This effectively ends the poll
-            }
-          });
-          console.log('Poll ended successfully');
-        } catch (err) {
-          console.error('Error ending poll or revealing answer:', err);
-          console.error('Error stack:', err.stack);
-          // Try to send an error message to the channel
-          try {
-            await message.channel.send('❌ There was an error revealing the answer. Please check the logs.');
-          } catch (sendErr) {
-            console.error('Failed to send error message:', sendErr);
-          }
-        }
-      }, timeUntilReveal);
+      await sendEnglishQuiz(quiz, channel);
     } catch (err) {
       console.error('Error generating English quiz:', err);
       message.reply('Sorry, something went wrong while generating the English quiz.');
@@ -1239,92 +1155,48 @@ Do not include greetings, lesson titles, or number the sections.`
         return;
       }
       // Extract the English paragraph and options
-      const enMatch = quiz.match(/EN:\s*(.+)/);
-      const options = [];
+      let enMatch = quiz.match(/EN:\s*(.+)/);
+      let options = [];
       for (const letter of ['A', 'B', 'C', 'D']) {
-        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+        const optMatch = quiz.match(new RegExp(`${letter}\)\s*(.+)`));
         if (optMatch) options.push(optMatch[1]);
       }
-      const question = enMatch ? enMatch[1] : 'English paragraph';
+      let question = enMatch ? enMatch[1] : 'English paragraph';
 
-      // Generate and send audio for the English text using English TTS
-      const audioBuffer = await getTTSBufferForLongText(question, true);
+      // Extract the English text using a more robust regex pattern
+      enMatch = quiz.match(/EN: (.*?)(?=\n|$)/);
+      question = enMatch ? enMatch[1].trim() : 'English paragraph';
+
+      // Send the audio file
+      const audioBuffer = await getEnglishTTSBuffer(question);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
       await channel.send({
         content: `@everyone **Daily English Quiz**\n${question}`,
         files: [audioAttachment]
       });
 
-      // Send the options as a message with a., b., c., d.
-      const optionLabels = ['a', 'b', 'c', 'd'];
-      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-      await channel.send(
-        `**Options:**\n${optionsText}`
-      );
+      // Extract the options
+      const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
+      options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
 
-      // Send the poll with just a, b, c, d as options
-      const pollMsg = await channel.send({
-        poll: {
-          question: { text: 'この英文の意味として最も適切なのは？' },
-          answers: optionLabels.map(label => ({ text: label }))
-        }
+      // Create a poll with the options
+      const pollMessage = await channel.send({
+        content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
       });
 
-      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-      const now = new Date();
-      const revealTime = new Date(now);
-      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-      
-      // If it's already past 00:00 UTC, schedule for next day
-      if (now.getUTCHours() >= 0) {
-        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+      // Add reactions for each option
+      for (let i = 0; i < options.length; i++) {
+        await pollMessage.react(REACTIONS[i]);
       }
 
-      // Calculate time until reveal
-      const timeUntilReveal = revealTime.getTime() - now.getTime();
+      // Extract the correct answer
+      const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
+      const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
 
-      // Schedule the reveal
+      // Send the answer after 30 seconds
       setTimeout(async () => {
-        try {
-          console.log('Attempting to reveal answer at scheduled time...');
-          
-          // Extract answer and explanation before ending the poll
-          console.log('Raw quiz content:', quiz);
-          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-          console.log('Answer match:', answerMatch);
-          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-          console.log('Explanation match:', explanationMatch);
-          
-          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-          console.log('Extracted answer:', answer);
-          console.log('Extracted explanation:', explanation);
-
-          // First send the explanation message
-          await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
-          console.log('Answer revealed successfully');
-
-          // Then end the poll by editing the message
-          await pollMsg.edit({
-            poll: {
-              question: { text: 'この英文の意味として最も適切なのは？' },
-              answers: optionLabels.map(label => ({ text: label })),
-              duration: 0 // This effectively ends the poll
-            }
-          });
-          console.log('Poll ended successfully');
-        } catch (err) {
-          console.error('Error ending poll or revealing answer:', err);
-          console.error('Error stack:', err.stack);
-          // Try to send an error message to the channel
-          try {
-            await channel.send('❌ There was an error revealing the answer. Please check the logs.');
-          } catch (sendErr) {
-            console.error('Failed to send error message:', sendErr);
-          }
-        }
-      }, timeUntilReveal);
-      message.reply('✅ English quiz has been sent to the configured channel!');
+        await channel.send(`正解: ${correctAnswer}`);
+      }, 30000);
     } catch (err) {
       console.error('Error generating forced scheduled English quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled English quiz.');
@@ -1348,7 +1220,11 @@ Do not include greetings, lesson titles, or number the sections.`
       }
       const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
       
-      // First send the audio file
+      // Extract the Japanese text using a more robust regex pattern
+      jpMatch = quiz.match(/JP: (.*?)(?=\n|$)/);
+      question = jpMatch ? jpMatch[1].trim() : 'Japanese paragraph';
+
+      // Send the audio file
       const audioBuffer = await getTTSBuffer(question);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
       await channel.send({
@@ -1356,76 +1232,28 @@ Do not include greetings, lesson titles, or number the sections.`
         files: [audioAttachment]
       });
 
-      // Send the options as a message with a., b., c., d.
-      const optionLabels = ['a', 'b', 'c', 'd'];
-      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-      await channel.send(
-        `**Options:**\n${optionsText}`
-      );
+      // Extract the options
+      const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
+      options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
 
-      // Send the poll with just a, b, c, d as options
-      const pollMsg = await channel.send({
-        poll: {
-          question: { text: 'この英文の意味として最も適切なのは？' },
-          answers: optionLabels.map(label => ({ text: label }))
-        }
+      // Create a poll with the options
+      const pollMessage = await channel.send({
+        content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
       });
 
-      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-      const now = new Date();
-      const revealTime = new Date(now);
-      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-      
-      // If it's already past 00:00 UTC, schedule for next day
-      if (now.getUTCHours() >= 0) {
-        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+      // Add reactions for each option
+      for (let i = 0; i < options.length; i++) {
+        await pollMessage.react(REACTIONS[i]);
       }
 
-      // Calculate time until reveal
-      const timeUntilReveal = revealTime.getTime() - now.getTime();
+      // Extract the correct answer
+      const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
+      const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
 
-      // Schedule the reveal
+      // Send the answer after 30 seconds
       setTimeout(async () => {
-        try {
-          console.log('Attempting to reveal answer at scheduled time...');
-          
-          // Extract answer and explanation before ending the poll
-          console.log('Raw quiz content:', quiz);
-          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-          console.log('Answer match:', answerMatch);
-          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-          console.log('Explanation match:', explanationMatch);
-          
-          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-          console.log('Extracted answer:', answer);
-          console.log('Extracted explanation:', explanation);
-
-          // First send the explanation message
-          await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
-          console.log('Answer revealed successfully');
-
-          // Then end the poll by editing the message
-          await pollMsg.edit({
-            poll: {
-              question: { text: 'この英文の意味として最も適切なのは？' },
-              answers: optionLabels.map(label => ({ text: label })),
-              duration: 0 // This effectively ends the poll
-            }
-          });
-          console.log('Poll ended successfully');
-        } catch (err) {
-          console.error('Error ending poll or revealing answer:', err);
-          console.error('Error stack:', err.stack);
-          // Try to send an error message to the channel
-          try {
-            await channel.send('❌ There was an error revealing the answer. Please check the logs.');
-          } catch (sendErr) {
-            console.error('Failed to send error message:', sendErr);
-          }
-        }
-      }, timeUntilReveal);
-      message.reply('✅ Japanese quiz has been sent to the configured channel!');
+        await channel.send(`正解: ${correctAnswer}`);
+      }, 30000);
     } catch (err) {
       console.error('Error generating forced scheduled Japanese quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled Japanese quiz.');
@@ -1491,45 +1319,111 @@ async function getTTSBufferForLongText(text, isEnglish = false) {
 }
 
 async function generateEnglishComprehensionQuiz() {
-  const quizPrompt = `You are an English language comprehension quiz generator for Japanese learners.
-Generate an English paragraph (2-3 short sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: `You are an English language tutor creating a daily comprehension quiz for Japanese learners.
+Each time, create a different quiz with a short English paragraph and multiple choice questions in Japanese.
+Focus on practical, everyday English that Japanese learners might encounter.
 
-IMPORTANT: Keep each sentence short and concise (under 20 words). This is crucial for text-to-speech processing.
+Format the response into exactly 4 clearly separated blocks (using \n\n):
 
-The paragraph should:
-1. Include subtle nuances, implications, or cultural context that require deeper understanding
-2. Use a mix of grammar patterns and vocabulary that Japanese learners might find challenging
-3. Have some ambiguity or room for interpretation in certain aspects
+EN: <A short English paragraph (2-3 sentences) that is natural and engaging>
 
-Then provide 4 Japanese options (A, B, C, D) for its meaning. The options should:
-1. All be plausible interpretations of the text
-2. Differ in subtle ways (e.g., timing, speaker's attitude, implied meaning, cultural context)
-3. Include at least one option that's partially correct but misses a key nuance
-4. Have only one option that captures all aspects of the text accurately
+Options:
+<Four Japanese options for the meaning of the paragraph, with only one being correct>
+- Option A: <First option in Japanese>
+- Option B: <Second option in Japanese>
+- Option C: <Third option in Japanese>
+- Option D: <Fourth option in Japanese>
 
-After the options, state the correct answer and provide a detailed explanation in Japanese that highlights:
-- The key nuances and why the other options are incorrect
-- Any cultural context or implications that might be unfamiliar to Japanese learners
-- Common mistakes Japanese learners might make with this type of text
-- How the English expressions differ from similar Japanese expressions
+Answer: <The correct option letter (A, B, C, or D)>
 
-Format:
-EN: <paragraph>
-A) <option 1 in Japanese>
-B) <option 2 in Japanese>
-C) <option 3 in Japanese>
-D) <option 4 in Japanese>
-Answer: <A/B/C/D>
-Explanation: <detailed explanation in Japanese>
-`;
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: quizPrompt },
-      { role: 'user', content: 'Generate a new quiz.' }
-    ]
-  });
-  return completion.choices[0].message.content;
+Explanation:
+<Brief explanation in Japanese of why the answer is correct and what the paragraph means>`
+        },
+        {
+          role: "user",
+          content: "Give me an English comprehension quiz for Japanese learners."
+        }
+      ]
+    });
+
+    return completion.choices[0].message.content;
+  } catch (err) {
+    console.error('Error generating English quiz:', err);
+    return null;
+  }
+}
+
+async function sendEnglishQuiz(quiz, channel) {
+  if (!quiz || !channel) return;
+
+  try {
+    // Extract the English text
+    const enMatch = quiz.match(/EN: (.*?)(?=\n|$)/);
+    const question = enMatch ? enMatch[1].trim() : 'English paragraph';
+
+    // Send the audio file
+    const audioBuffer = await getEnglishTTSBuffer(question);
+    const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
+    await channel.send({
+      content: `@everyone **Daily English Quiz**\n${question}`,
+      files: [audioAttachment]
+    });
+
+    // Extract the options
+    const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
+    const options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
+
+    // Create a poll with the options
+    const pollMessage = await channel.send({
+      content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
+    });
+
+    // Add reactions for each option
+    for (let i = 0; i < options.length; i++) {
+      await pollMessage.react(REACTIONS[i]);
+    }
+
+    // Extract the correct answer
+    const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
+    const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
+
+    // Send the answer after 30 seconds
+    setTimeout(async () => {
+      await channel.send(`正解: ${correctAnswer}`);
+    }, 30000);
+  } catch (err) {
+    console.error('Error sending English quiz:', err);
+  }
+}
+
+// Update the message handler
+client.on('messageCreate', async (message) => {
+  if (message.content === '!englishquiz') {
+    const channel = message.channel;
+    const quiz = await generateEnglishComprehensionQuiz();
+    await sendEnglishQuiz(quiz, channel);
+  }
+});
+
+// Update the scheduled quiz function
+async function sendScheduledEnglishQuiz() {
+  try {
+    const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
+    if (!channel) {
+      console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
+      return;
+    }
+    const quiz = await generateEnglishComprehensionQuiz();
+    await sendEnglishQuiz(quiz, channel);
+  } catch (err) {
+    console.error('Error sending scheduled English quiz:', err);
+  }
 }
 
 // Scheduled daily quiz
@@ -1545,10 +1439,14 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
     const jpMatch = quiz.match(/JP:\s*(.+)/);
     const options = [];
     for (const letter of ['A', 'B', 'C', 'D']) {
-      const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+      const optMatch = quiz.match(new RegExp(`${letter}\)\s*(.+)`));
       if (optMatch) options.push(optMatch[1]);
     }
     const question = jpMatch ? jpMatch[1] : 'Japanese sentence';
+
+    // Extract the Japanese text using a more robust regex pattern
+    jpMatch = quiz.match(/JP: (.*?)(?=\n|$)/);
+    question = jpMatch ? jpMatch[1].trim() : 'Japanese sentence';
 
     // Send the audio file
     const audioBuffer = await getTTSBuffer(question);
@@ -1558,75 +1456,28 @@ schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
       files: [audioAttachment]
     });
 
-    // Send the options as a message with a., b., c., d.
-    const optionLabels = ['a', 'b', 'c', 'd'];
-    let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-    await channel.send(
-      `**Options:**\n${optionsText}`
-    );
+    // Extract the options
+    const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
+    options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
 
-    // Send the poll with just a, b, c, d as options
-    const pollMsg = await channel.send({
-      poll: {
-        question: { text: 'この英文の意味として最も適切なのは？' },
-        answers: optionLabels.map(label => ({ text: label }))
-      }
+    // Create a poll with the options
+    const pollMessage = await channel.send({
+      content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
     });
 
-    // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-    const now = new Date();
-    const revealTime = new Date(now);
-    revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-    
-    // If it's already past 00:00 UTC, schedule for next day
-    if (now.getUTCHours() >= 0) {
-      revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+    // Add reactions for each option
+    for (let i = 0; i < options.length; i++) {
+      await pollMessage.react(REACTIONS[i]);
     }
 
-    // Calculate time until reveal
-    const timeUntilReveal = revealTime.getTime() - now.getTime();
+    // Extract the correct answer
+    const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
+    const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
 
-    // Schedule the reveal
+    // Send the answer after 30 seconds
     setTimeout(async () => {
-      try {
-        console.log('Attempting to reveal answer at scheduled time...');
-        
-        // Extract answer and explanation before ending the poll
-        console.log('Raw quiz content:', quiz);
-        const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-        console.log('Answer match:', answerMatch);
-        const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-        console.log('Explanation match:', explanationMatch);
-        
-        let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-        let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-        console.log('Extracted answer:', answer);
-        console.log('Extracted explanation:', explanation);
-
-        // First send the explanation message
-        await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
-        console.log('Answer revealed successfully');
-
-        // Then end the poll by editing the message
-        await pollMsg.edit({
-          poll: {
-            question: { text: 'この英文の意味として最も適切なのは？' },
-            answers: optionLabels.map(label => ({ text: label })),
-            duration: 0 // This effectively ends the poll
-          }
-        });
-        console.log('Poll ended successfully');
-      } catch (err) {
-        console.error('Error ending poll or revealing answer:', err);
-        console.error('Error stack:', err.stack);
-        // Try to send an error message to the channel
-        try {
-          await channel.send('❌ There was an error revealing the answer. Please check the logs.');
-        } catch (sendErr) {
-          console.error('Failed to send error message:', sendErr);
-        }
-      }
-    }, timeUntilReveal);
+      await channel.send(`正解: ${correctAnswer}`);
+    }, 30000);
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
   }
@@ -1776,13 +1627,17 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
       return;
     }
     // Extract the English paragraph and options
-    const enMatch = quiz.match(/EN:\s*(.+)/);
-    const options = [];
+    let enMatch = quiz.match(/EN:\s*(.+)/);
+    let options = [];
     for (const letter of ['A', 'B', 'C', 'D']) {
-      const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+      const optMatch = quiz.match(new RegExp(`${letter}\)\s*(.+)`));
       if (optMatch) options.push(optMatch[1]);
     }
-    const question = enMatch ? enMatch[1] : 'English paragraph';
+    let question = enMatch ? enMatch[1] : 'English paragraph';
+
+    // Extract the English text using a more robust regex pattern
+    enMatch = quiz.match(/EN: (.*?)(?=\n|$)/);
+    question = enMatch ? enMatch[1].trim() : 'English paragraph';
 
     // Send the audio file
     const audioBuffer = await getEnglishTTSBuffer(question);
@@ -1792,75 +1647,28 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
       files: [audioAttachment]
     });
 
-    // Send the options as a message with a., b., c., d.
-    const optionLabels = ['a', 'b', 'c', 'd'];
-    let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-    await channel.send(
-      `**Options:**\n${optionsText}`
-    );
+    // Extract the options
+    const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
+    options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
 
-    // Send the poll with just a, b, c, d as options
-    const pollMsg = await channel.send({
-      poll: {
-        question: { text: 'この英文の意味として最も適切なのは？' },
-        answers: optionLabels.map(label => ({ text: label }))
-      }
+    // Create a poll with the options
+    const pollMessage = await channel.send({
+      content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
     });
 
-    // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-    const now = new Date();
-    const revealTime = new Date(now);
-    revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-    
-    // If it's already past 00:00 UTC, schedule for next day
-    if (now.getUTCHours() >= 0) {
-      revealTime.setUTCDate(revealTime.getUTCDate() + 1);
+    // Add reactions for each option
+    for (let i = 0; i < options.length; i++) {
+      await pollMessage.react(REACTIONS[i]);
     }
 
-    // Calculate time until reveal
-    const timeUntilReveal = revealTime.getTime() - now.getTime();
+    // Extract the correct answer
+    const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
+    const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
 
-    // Schedule the reveal
+    // Send the answer after 30 seconds
     setTimeout(async () => {
-      try {
-        console.log('Attempting to reveal answer at scheduled time...');
-        
-        // Extract answer and explanation before ending the poll
-        console.log('Raw quiz content:', quiz);
-        const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-        console.log('Answer match:', answerMatch);
-        const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-        console.log('Explanation match:', explanationMatch);
-        
-        let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-        let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-        console.log('Extracted answer:', answer);
-        console.log('Extracted explanation:', explanation);
-
-        // First send the explanation message
-        await channel.send(`✅ **正解:** ${answer}\n${explanation}`);
-        console.log('Answer revealed successfully');
-
-        // Then end the poll by editing the message
-        await pollMsg.edit({
-          poll: {
-            question: { text: 'この英文の意味として最も適切なのは？' },
-            answers: optionLabels.map(label => ({ text: label })),
-            duration: 0 // This effectively ends the poll
-          }
-        });
-        console.log('Poll ended successfully');
-      } catch (err) {
-        console.error('Error ending poll or revealing answer:', err);
-        console.error('Error stack:', err.stack);
-        // Try to send an error message to the channel
-        try {
-          await channel.send('❌ There was an error revealing the answer. Please check the logs.');
-        } catch (sendErr) {
-          console.error('Failed to send error message:', sendErr);
-        }
-      }
-    }, timeUntilReveal);
+      await channel.send(`正解: ${correctAnswer}`);
+    }, 30000);
   } catch (err) {
     console.error('Error generating scheduled English quiz:', err);
   }
