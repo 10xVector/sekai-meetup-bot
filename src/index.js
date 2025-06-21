@@ -56,6 +56,12 @@ const client = new Client({
   ] 
 });
 
+// Store quiz data for answer revelation
+const quizData = {
+  japanese: { pollMessage: null, answer: null, explanation: null, channel: null },
+  english: { pollMessage: null, answer: null, explanation: null, channel: null }
+};
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
@@ -1028,6 +1034,26 @@ Do not include greetings, lesson titles, or number the sections.`
     }
   }
 
+  if (message.content === '!revealjapanesequiz') {
+    try {
+      await revealPreviousQuizAnswer('japanese');
+      message.reply('✅ Previous Japanese quiz answer revealed!');
+    } catch (err) {
+      console.error('Error revealing Japanese quiz answer:', err);
+      message.reply('Sorry, something went wrong while revealing the Japanese quiz answer.');
+    }
+  }
+
+  if (message.content === '!revealenglishquiz') {
+    try {
+      await revealPreviousQuizAnswer('english');
+      message.reply('✅ Previous English quiz answer revealed!');
+    } catch (err) {
+      console.error('Error revealing English quiz answer:', err);
+      message.reply('Sorry, something went wrong while revealing the English quiz answer.');
+    }
+  }
+
   if (message.content.startsWith('!send')) {
     try {
       const args = message.content.split(' ');
@@ -1166,47 +1192,63 @@ async function sendQuiz(quiz, channel, isEnglish = false) {
       }
     });
 
-    // Add reactions for each option
-    for (let i = 0; i < Math.min(options.length, REACTIONS.length); i++) {
-      await pollMessage.react(REACTIONS[i]);
-    }
-
     // Extract the correct answer
     const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
     const correctAnswer = answerMatch ? answerMatch[1].toUpperCase() : 'A';
 
-    // Send the answer after 30 seconds
+    // Store quiz data for answer revelation when next quiz is scheduled
+    const quizType = isEnglish ? 'english' : 'japanese';
+    const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
+    const explanation = explanationMatch ? explanationMatch[1].trim() : '';
+    
+    quizData[quizType] = {
+      pollMessage: pollMessage,
+      answer: correctAnswer,
+      explanation: explanation,
+      channel: channel
+    };
+
+    // Reveal answer after 6 hours (21600000 milliseconds)
     setTimeout(async () => {
-      try {
-        // Extract explanation from the quiz content
-        const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-        const explanation = explanationMatch ? explanationMatch[1].trim() : '';
-        
-        // Send the explanation message with the correct answer
-        await channel.send(`✅ **Correct answer:** ${correctAnswer}\n${explanation}`);
-        
-        // End the poll by editing the message
-        await pollMessage.edit({
-          poll: {
-            question: { text: isEnglish ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
-            answers: options.map((opt, i) => ({ text: opt })),
-            duration: 0 // This effectively ends the poll
-          }
-        });
-        
-        console.log('Answer revealed and poll ended successfully');
-      } catch (answerError) {
-        console.error('Error sending answer:', answerError);
-        // Fallback: just send the answer if explanation fails
-        try {
-          await channel.send(`正解: ${correctAnswer}`);
-        } catch (fallbackError) {
-          console.error('Error sending fallback answer:', fallbackError);
-        }
-      }
-    }, 30000);
+      await revealPreviousQuizAnswer(quizType);
+    }, 21600000);
+
+    console.log(`Quiz sent and data stored for ${quizType} quiz. Answer will be revealed in 6 hours.`);
   } catch (err) {
     console.error(`Error sending ${isEnglish ? 'English' : 'Japanese'} quiz:`, err);
+  }
+}
+
+// Function to reveal previous quiz answers
+async function revealPreviousQuizAnswer(quizType) {
+  const data = quizData[quizType];
+  if (data && data.pollMessage && data.answer) {
+    try {
+      // Send the explanation message with the correct answer
+      await data.channel.send(`✅ **Correct answer:** ${data.answer}\n${data.explanation}`);
+      
+      // End the poll by editing the message
+      await data.pollMessage.edit({
+        poll: {
+          question: { text: quizType === 'english' ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
+          answers: data.pollMessage.poll.answers,
+          duration: 0 // This effectively ends the poll
+        }
+      });
+      
+      console.log(`Previous ${quizType} quiz answer revealed successfully`);
+      
+      // Clear the stored data
+      quizData[quizType] = { pollMessage: null, answer: null, explanation: null, channel: null };
+    } catch (answerError) {
+      console.error(`Error revealing ${quizType} quiz answer:`, answerError);
+      // Fallback: just send the answer if explanation fails
+      try {
+        await data.channel.send(`正解: ${data.answer}`);
+      } catch (fallbackError) {
+        console.error('Error sending fallback answer:', fallbackError);
+      }
+    }
   }
 }
 
@@ -1363,6 +1405,7 @@ Do not include greetings, lesson titles, or number the sections.`
 schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
   try {
     console.log('Starting scheduled English quiz...');
+    
     const quiz = await generateComprehensionQuiz('english');
     
     if (!quiz) {
