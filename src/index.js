@@ -148,7 +148,7 @@ const ENGLISH_VOICES = [
 const REACTIONS = ['🇦', '🇧', '🇨', '🇩'];
 
 async function getTTSBuffer(text) {
-  // Randomly select a voice from the available options
+  // Randomly select a voice once per function call
   const selectedVoice = JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
   
   const [response] = await ttsClient.synthesizeSpeech({
@@ -168,20 +168,7 @@ async function getTTSBuffer(text) {
 }
 
 async function getEnglishTTSBuffer(text) {
-  // Define available voices
-  const ENGLISH_VOICES = [
-    // Female voices
-    { name: 'en-US-Chirp3-HD-Achernar', ssmlGender: 'FEMALE' },
-    { name: 'en-US-Chirp3-HD-Erinome', ssmlGender: 'FEMALE' },
-    { name: 'en-US-Chirp3-HD-Sulafat', ssmlGender: 'FEMALE' },
-    { name: 'en-US-Chirp3-HD-Vindemiatrix', ssmlGender: 'FEMALE' },
-    // Male voices
-    { name: 'en-US-Chirp3-HD-Algenib', ssmlGender: 'MALE' },
-    { name: 'en-US-Chirp3-HD-Achird', ssmlGender: 'MALE' },
-    { name: 'en-US-Chirp3-HD-Alnilam', ssmlGender: 'MALE' }
-  ];
-
-  // Randomly select a voice
+  // Randomly select a voice once per function call
   const selectedVoice = ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)];
   
   const request = {
