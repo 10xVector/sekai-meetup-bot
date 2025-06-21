@@ -196,6 +196,26 @@ async function getEnglishTTSBuffer(text) {
   return response.audioContent;
 }
 
+// Helper function to split text into chunks for TTS
+async function getTTSBufferForLongText(text, isEnglish = false) {
+  // Split text into sentences
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const audioBuffers = [];
+
+  for (const sentence of sentences) {
+    const trimmedSentence = sentence.trim();
+    if (trimmedSentence) {
+      const buffer = isEnglish ? 
+        await getEnglishTTSBuffer(trimmedSentence) : 
+        await getTTSBuffer(trimmedSentence);
+      audioBuffers.push(buffer);
+    }
+  }
+
+  // Combine all audio buffers
+  return Buffer.concat(audioBuffers);
+}
+
 client.once('ready', () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
@@ -283,93 +303,8 @@ Do not include greetings, lesson titles, or number the sections.`
 
   if (message.content === '!quiz') {
     try {
-      const quiz = await generateComprehensionQuiz();
-      // Extract the Japanese paragraph and options
-      const jpMatch = quiz.match(/JP:\s*(.+)/);
-      const options = [];
-      for (const letter of ['A', 'B', 'C', 'D']) {
-        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
-        if (optMatch) options.push(optMatch[1]);
-      }
-      const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
-      
-      // First send the audio file
-      const audioBuffer = await getTTSBuffer(question);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
-      await message.channel.send({
-        content: `**Daily Quiz**\n${question}`,
-        files: [audioAttachment]
-      });
-
-      // Send the options as a message with a., b., c., d.
-      const optionLabels = ['a', 'b', 'c', 'd'];
-      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-      await message.channel.send(
-        `**Options:**\n${optionsText}`
-      );
-
-      // Send the poll with just a, b, c, d as options
-      const pollMsg = await message.channel.send({
-        poll: {
-          question: { text: 'What is the most accurate English meaning?' },
-          answers: optionLabels.map(label => ({ text: label }))
-        }
-      });
-
-      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-      const now = new Date();
-      const revealTime = new Date(now);
-      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-      
-      // If it's already past 00:00 UTC, schedule for next day
-      if (now.getUTCHours() >= 0) {
-        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
-      }
-
-      // Calculate time until reveal
-      const timeUntilReveal = revealTime.getTime() - now.getTime();
-
-      // Schedule the reveal
-      setTimeout(async () => {
-        try {
-          console.log('Attempting to reveal answer at scheduled time...');
-          
-          // Extract answer and explanation before ending the poll
-          console.log('Raw quiz content:', quiz);
-          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-          console.log('Answer match:', answerMatch);
-          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-          console.log('Explanation match:', explanationMatch);
-          
-          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-          console.log('Extracted answer:', answer);
-          console.log('Extracted explanation:', explanation);
-
-          // First send the explanation message
-          await message.channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
-          console.log('Answer revealed successfully');
-
-          // Then end the poll by editing the message
-          await pollMsg.edit({
-            poll: {
-              question: { text: 'What is the most accurate English meaning?' },
-              answers: optionLabels.map(label => ({ text: label })),
-              duration: 0 // This effectively ends the poll
-            }
-          });
-          console.log('Poll ended successfully');
-        } catch (err) {
-          console.error('Error ending poll or revealing answer:', err);
-          console.error('Error stack:', err.stack);
-          // Try to send an error message to the channel
-          try {
-            await message.channel.send('❌ There was an error revealing the answer. Please check the logs.');
-          } catch (sendErr) {
-            console.error('Failed to send error message:', sendErr);
-          }
-        }
-      }, timeUntilReveal);
+      const quiz = await generateComprehensionQuiz('japanese');
+      await sendQuiz(quiz, message.channel, false);
     } catch (err) {
       console.error('Error generating quiz:', err);
       message.reply('Sorry, something went wrong while generating the quiz.');
@@ -378,93 +313,8 @@ Do not include greetings, lesson titles, or number the sections.`
 
   if (message.content === '!forcescheduledquiz') {
     try {
-      const quiz = await generateComprehensionQuiz();
-      // Extract the Japanese paragraph and options
-      const jpMatch = quiz.match(/JP:\s*(.+)/);
-      const options = [];
-      for (const letter of ['A', 'B', 'C', 'D']) {
-        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
-        if (optMatch) options.push(optMatch[1]);
-      }
-      const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
-      
-      // First send the audio file
-      const audioBuffer = await getTTSBuffer(question);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
-      await message.channel.send({
-        content: `**Daily Quiz**\n${question}`,
-        files: [audioAttachment]
-      });
-
-      // Send the options as a message with a., b., c., d.
-      const optionLabels = ['a', 'b', 'c', 'd'];
-      let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
-      await message.channel.send(
-        `**Options:**\n${optionsText}`
-      );
-
-      // Send the poll with just a, b, c, d as options
-      const pollMsg = await message.channel.send({
-        poll: {
-          question: { text: 'What is the most accurate English meaning?' },
-          answers: optionLabels.map(label => ({ text: label }))
-        }
-      });
-
-      // Schedule answer reveal for 9 AM JST (00:00 UTC) the next day
-      const now = new Date();
-      const revealTime = new Date(now);
-      revealTime.setUTCHours(0, 0, 0, 0); // Set to 00:00 UTC (9 AM JST)
-      
-      // If it's already past 00:00 UTC, schedule for next day
-      if (now.getUTCHours() >= 0) {
-        revealTime.setUTCDate(revealTime.getUTCDate() + 1);
-      }
-
-      // Calculate time until reveal
-      const timeUntilReveal = revealTime.getTime() - now.getTime();
-
-      // Schedule the reveal
-      setTimeout(async () => {
-        try {
-          console.log('Attempting to reveal answer at scheduled time...');
-          
-          // Extract answer and explanation before ending the poll
-          console.log('Raw quiz content:', quiz);
-          const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
-          console.log('Answer match:', answerMatch);
-          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-          console.log('Explanation match:', explanationMatch);
-          
-          let answer = answerMatch ? answerMatch[1].toUpperCase() : 'Unknown';
-          let explanation = explanationMatch ? explanationMatch[1].trim() : '';
-          console.log('Extracted answer:', answer);
-          console.log('Extracted explanation:', explanation);
-
-          // First send the explanation message
-          await message.channel.send(`✅ **Correct answer:** ${answer}\n${explanation}`);
-          console.log('Answer revealed successfully');
-
-          // Then end the poll by editing the message
-          await pollMsg.edit({
-            poll: {
-              question: { text: 'What is the most accurate English meaning?' },
-              answers: optionLabels.map(label => ({ text: label })),
-              duration: 0 // This effectively ends the poll
-            }
-          });
-          console.log('Poll ended successfully');
-        } catch (err) {
-          console.error('Error ending poll or revealing answer:', err);
-          console.error('Error stack:', err.stack);
-          // Try to send an error message to the channel
-          try {
-            await message.channel.send('❌ There was an error revealing the answer. Please check the logs.');
-          } catch (sendErr) {
-            console.error('Failed to send error message:', sendErr);
-          }
-        }
-      }, timeUntilReveal);
+      const quiz = await generateComprehensionQuiz('japanese');
+      await sendQuiz(quiz, message.channel, false);
     } catch (err) {
       console.error('Error generating forced scheduled quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled quiz.');
@@ -1140,9 +990,8 @@ Do not include greetings, lesson titles, or number the sections.`
 
   if (message.content === '!englishquiz') {
     try {
-      const channel = message.channel;
-      const quiz = await generateEnglishComprehensionQuiz();
-      await sendEnglishQuiz(quiz, channel);
+      const quiz = await generateComprehensionQuiz('english');
+      await sendQuiz(quiz, message.channel, true);
     } catch (err) {
       console.error('Error generating English quiz:', err);
       message.reply('Sorry, something went wrong while generating the English quiz.');
@@ -1151,84 +1000,13 @@ Do not include greetings, lesson titles, or number the sections.`
 
   if (message.content === '!forcescheduledenglishquiz') {
     try {
-      const quiz = await generateEnglishComprehensionQuiz();
+      const quiz = await generateComprehensionQuiz('english');
       const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
       if (!channel) {
         console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
         return;
       }
-      // Extract the English paragraph and options
-      let enMatch = quiz.match(/EN:\s*(.+)/);
-      let options = [];
-      for (const letter of ['A', 'B', 'C', 'D']) {
-        const optMatch = quiz.match(new RegExp(`${letter}\)\s*(.+)`));
-        if (optMatch) options.push(optMatch[1]);
-      }
-      let question = enMatch ? enMatch[1] : 'English paragraph';
-
-      // Extract the English text using a more robust regex pattern
-      enMatch = quiz.match(/EN: (.*?)(?=\n|$)/);
-      question = enMatch ? enMatch[1].trim() : 'English paragraph';
-
-      // Send the audio file
-      const audioBuffer = await getEnglishTTSBuffer(question);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
-      await channel.send({
-        content: `@everyone **Daily English Quiz**\n${question}`,
-        files: [audioAttachment]
-      });
-
-      // Extract the options
-      const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
-      options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
-
-      // Create a poll with the options
-      const pollMessage = await channel.send({
-        poll: {
-          question: { text: 'この英文の意味として最も適切なのは？' },
-          answers: options.map((opt, i) => ({ text: String.fromCharCode(65 + i) }))
-        }
-      });
-
-      // Add reactions for each option
-      for (let i = 0; i < options.length; i++) {
-        await pollMessage.react(REACTIONS[i]);
-      }
-
-      // Extract the correct answer
-      const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
-      const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
-
-      // Send the answer after 30 seconds
-      setTimeout(async () => {
-        try {
-          // Extract explanation from the quiz content
-          const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-          const explanation = explanationMatch ? explanationMatch[1].trim() : '';
-          
-          // Send the explanation message with the correct answer
-          await channel.send(`✅ **Correct answer:** ${correctAnswer}\n${explanation}`);
-          
-          // End the poll by editing the message
-          await pollMessage.edit({
-            poll: {
-              question: { text: 'この英文の意味として最も適切なのは？' },
-              answers: options.map((opt, i) => ({ text: String.fromCharCode(65 + i) })),
-              duration: 0 // This effectively ends the poll
-            }
-          });
-          
-          console.log('Answer revealed and poll ended successfully');
-        } catch (answerError) {
-          console.error('Error sending answer:', answerError);
-          // Fallback: just send the answer if explanation fails
-          try {
-            await channel.send(`正解: ${correctAnswer}`);
-          } catch (fallbackError) {
-            console.error('Error sending fallback answer:', fallbackError);
-          }
-        }
-      }, 30000);
+      await sendQuiz(quiz, channel, true);
     } catch (err) {
       console.error('Error generating forced scheduled English quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled English quiz.');
@@ -1237,55 +1015,13 @@ Do not include greetings, lesson titles, or number the sections.`
 
   if (message.content === '!forcescheduledjapanesequiz') {
     try {
-      const quiz = await generateComprehensionQuiz();
+      const quiz = await generateComprehensionQuiz('japanese');
       const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
       if (!channel) {
         console.error('Quiz channel not found:', JAPANESE_QUIZ_CHANNEL_ID);
         return;
       }
-      // Extract the Japanese paragraph and options
-      const jpMatch = quiz.match(/JP:\s*(.+)/);
-      const options = [];
-      for (const letter of ['A', 'B', 'C', 'D']) {
-        const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
-        if (optMatch) options.push(optMatch[1]);
-      }
-      const question = jpMatch ? jpMatch[1] : 'Japanese paragraph';
-      
-      // Extract the Japanese text using a more robust regex pattern
-      jpMatch = quiz.match(/JP: (.*?)(?=\n|$)/);
-      question = jpMatch ? jpMatch[1].trim() : 'Japanese paragraph';
-
-      // Send the audio file
-      const audioBuffer = await getTTSBuffer(question);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
-      await channel.send({
-        content: `@everyone **Daily Quiz**\n${question}`,
-        files: [audioAttachment]
-      });
-
-      // Extract the options
-      const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
-      options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
-
-      // Create a poll with the options
-      const pollMessage = await channel.send({
-        content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
-      });
-
-      // Add reactions for each option
-      for (let i = 0; i < options.length; i++) {
-        await pollMessage.react(REACTIONS[i]);
-      }
-
-      // Extract the correct answer
-      const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
-      const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
-
-      // Send the answer after 30 seconds
-      setTimeout(async () => {
-        await channel.send(`正解: ${correctAnswer}`);
-      }, 30000);
+      await sendQuiz(quiz, channel, false);
     } catch (err) {
       console.error('Error generating forced scheduled Japanese quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled Japanese quiz.');
@@ -1317,8 +1053,36 @@ Do not include greetings, lesson titles, or number the sections.`
 });
 
 // Helper to generate a comprehension quiz using OpenAI
-async function generateComprehensionQuiz() {
-  const quizPrompt = `You are a Japanese language comprehension quiz generator.
+async function generateComprehensionQuiz(language = 'japanese') {
+  const isEnglish = language === 'english';
+  
+  const quizPrompt = isEnglish ? 
+    `You are an English language comprehension quiz generator for Japanese learners.
+Generate an English paragraph (2-3 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+
+The paragraph should:
+1. Include subtle nuances, implications, or cultural context that require deeper understanding
+2. Use a mix of grammar patterns and vocabulary that Japanese learners might encounter in real life
+3. Have some ambiguity or room for interpretation in certain aspects
+
+Then provide 4 Japanese options (A, B, C, D) for its meaning. The options should:
+1. All be plausible interpretations of the text
+2. Differ in subtle ways (e.g., timing, speaker's attitude, implied meaning, cultural context)
+3. Include at least one option that's partially correct but misses a key nuance
+4. Have only one option that captures all aspects of the text accurately
+
+After the options, state the correct answer and a detailed explanation in Japanese that highlights the key nuances and why the other options are incorrect.
+
+Format:
+EN: <paragraph>
+A) <option 1 in Japanese>
+B) <option 2 in Japanese>
+C) <option 3 in Japanese>
+D) <option 4 in Japanese>
+Answer: <A/B/C/D>
+Explanation: <why in Japanese, including key nuances and why other options are incorrect>
+` :
+    `You are a Japanese language comprehension quiz generator.
 Generate a Japanese paragraph (3-4 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 
 The paragraph should:
@@ -1343,6 +1107,7 @@ D) <option 4>
 Answer: <A/B/C/D>
 Explanation: <why, including key nuances and why other options are incorrect>
 `;
+
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -1353,103 +1118,62 @@ Explanation: <why, including key nuances and why other options are incorrect>
   return completion.choices[0].message.content;
 }
 
-// Helper function to split text into chunks for TTS
-async function getTTSBufferForLongText(text, isEnglish = false) {
-  // Split text into sentences
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  const audioBuffers = [];
-
-  for (const sentence of sentences) {
-    const trimmedSentence = sentence.trim();
-    if (trimmedSentence) {
-      const buffer = isEnglish ? 
-        await getEnglishTTSBuffer(trimmedSentence) : 
-        await getTTSBuffer(trimmedSentence);
-      audioBuffers.push(buffer);
-    }
-  }
-
-  // Combine all audio buffers
-  return Buffer.concat(audioBuffers);
-}
-
-async function generateEnglishComprehensionQuiz() {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `You are an English language tutor creating a daily comprehension quiz for Japanese learners.
-Each time, create a different quiz with a short English paragraph and multiple choice questions in Japanese.
-Focus on practical, everyday English that Japanese learners might encounter.
-
-Format the response into exactly 4 clearly separated blocks (using \n\n):
-
-EN: <A short English paragraph (2-3 sentences) that is natural and engaging>
-
-Options:
-<Four Japanese options for the meaning of the paragraph, with only one being correct>
-- Option A: <First option in Japanese>
-- Option B: <Second option in Japanese>
-- Option C: <Third option in Japanese>
-- Option D: <Fourth option in Japanese>
-
-Answer: <The correct option letter (A, B, C, or D)>
-
-Explanation:
-<Brief explanation in Japanese of why the answer is correct and what the paragraph means>`
-        },
-        {
-          role: "user",
-          content: "Give me an English comprehension quiz for Japanese learners."
-        }
-      ]
-    });
-
-    return completion.choices[0].message.content;
-  } catch (err) {
-    console.error('Error generating English quiz:', err);
-    return null;
-  }
-}
-
-async function sendEnglishQuiz(quiz, channel) {
+// Unified function to send quiz with proper option extraction
+async function sendQuiz(quiz, channel, isEnglish = false) {
   if (!quiz || !channel) return;
 
   try {
-    // Extract the English text
-    const enMatch = quiz.match(/EN: (.*?)(?=\n|$)/);
-    const question = enMatch ? enMatch[1].trim() : 'English paragraph';
+    // Extract the main text (Japanese or English)
+    const textMatch = quiz.match(isEnglish ? /EN:\s*(.+)/ : /JP:\s*(.+)/);
+    const question = textMatch ? textMatch[1].trim() : (isEnglish ? 'English paragraph' : 'Japanese paragraph');
 
     // Send the audio file
-    const audioBuffer = await getEnglishTTSBuffer(question);
-    const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
-    await channel.send({
-      content: `@everyone **Daily English Quiz**\n${question}`,
-      files: [audioAttachment]
-    });
+    try {
+      const audioBuffer = isEnglish ? 
+        await getTTSBufferForLongText(question, true) : 
+        await getTTSBufferForLongText(question, false);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: `${isEnglish ? 'english-' : ''}quiz-audio.mp3` });
+      await channel.send({
+        content: `@everyone **Daily ${isEnglish ? 'English ' : ''}Quiz**\n${question}`,
+        files: [audioAttachment]
+      });
+    } catch (ttsError) {
+      console.error('TTS error, sending without audio:', ttsError);
+      await channel.send({
+        content: `@everyone **Daily ${isEnglish ? 'English ' : ''}Quiz**\n${question}`
+      });
+    }
 
-    // Extract the options
-    const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
-    const options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
+    // Extract options using the same logic for both languages
+    const options = [];
+    for (const letter of ['A', 'B', 'C', 'D']) {
+      const optMatch = quiz.match(new RegExp(`${letter}\\)\\s*(.+)`));
+      if (optMatch) options.push(optMatch[1].trim());
+    }
 
-    // Create a poll with the options
+    // Send the options as a message with descriptive text
+    const optionLabels = ['a', 'b', 'c', 'd'];
+    let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+    await channel.send(
+      `**Options:**\n${optionsText}`
+    );
+
+    // Create a poll with descriptive options
     const pollMessage = await channel.send({
       poll: {
-        question: { text: 'この英文の意味として最も適切なのは？' },
-        answers: options.map((opt, i) => ({ text: String.fromCharCode(65 + i) }))
+        question: { text: isEnglish ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
+        answers: options.map((opt, i) => ({ text: opt }))
       }
     });
 
     // Add reactions for each option
-    for (let i = 0; i < options.length; i++) {
+    for (let i = 0; i < Math.min(options.length, REACTIONS.length); i++) {
       await pollMessage.react(REACTIONS[i]);
     }
 
     // Extract the correct answer
-    const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
-    const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
+    const answerMatch = quiz.match(/Answer:\s*([A-D])/i);
+    const correctAnswer = answerMatch ? answerMatch[1].toUpperCase() : 'A';
 
     // Send the answer after 30 seconds
     setTimeout(async () => {
@@ -1464,8 +1188,8 @@ async function sendEnglishQuiz(quiz, channel) {
         // End the poll by editing the message
         await pollMessage.edit({
           poll: {
-            question: { text: 'この英文の意味として最も適切なのは？' },
-            answers: options.map((opt, i) => ({ text: String.fromCharCode(65 + i) })),
+            question: { text: isEnglish ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
+            answers: options.map((opt, i) => ({ text: opt })),
             duration: 0 // This effectively ends the poll
           }
         });
@@ -1482,86 +1206,20 @@ async function sendEnglishQuiz(quiz, channel) {
       }
     }, 30000);
   } catch (err) {
-    console.error('Error sending English quiz:', err);
-  }
-}
-
-// Update the message handler
-client.on('messageCreate', async (message) => {
-  if (message.content === '!englishquiz') {
-    const channel = message.channel;
-    const quiz = await generateEnglishComprehensionQuiz();
-    await sendEnglishQuiz(quiz, channel);
-  }
-});
-
-// Update the scheduled quiz function
-async function sendScheduledEnglishQuiz() {
-  try {
-    const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
-    if (!channel) {
-      console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
-      return;
-    }
-    const quiz = await generateEnglishComprehensionQuiz();
-    await sendEnglishQuiz(quiz, channel);
-  } catch (err) {
-    console.error('Error sending scheduled English quiz:', err);
+    console.error(`Error sending ${isEnglish ? 'English' : 'Japanese'} quiz:`, err);
   }
 }
 
 // Scheduled daily quiz
 schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
   try {
-    const quiz = await generateComprehensionQuiz();
+    const quiz = await generateComprehensionQuiz('japanese');
     const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
     if (!channel) {
       console.error('Quiz channel not found:', JAPANESE_QUIZ_CHANNEL_ID);
       return;
     }
-    // Extract the Japanese sentence and options
-    const jpMatch = quiz.match(/JP:\s*(.+)/);
-    const options = [];
-    for (const letter of ['A', 'B', 'C', 'D']) {
-      const optMatch = quiz.match(new RegExp(`${letter}\)\s*(.+)`));
-      if (optMatch) options.push(optMatch[1]);
-    }
-    const question = jpMatch ? jpMatch[1] : 'Japanese sentence';
-
-    // Extract the Japanese text using a more robust regex pattern
-    jpMatch = quiz.match(/JP: (.*?)(?=\n|$)/);
-    question = jpMatch ? jpMatch[1].trim() : 'Japanese sentence';
-
-    // Send the audio file
-    const audioBuffer = await getTTSBuffer(question);
-    const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'quiz-audio.mp3' });
-    await channel.send({
-      content: `@everyone **Daily Quiz**\n${question}`,
-      files: [audioAttachment]
-    });
-
-    // Extract the options
-    const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
-    options = optionsMatch ? optionsMatch[1].split('\n').map(opt => opt.trim()) : [];
-
-    // Create a poll with the options
-    const pollMessage = await channel.send({
-      content: `この英文の意味として最も適切なのは？\n${options.join('\n')}`
-    });
-
-    // Add reactions for each option
-    for (let i = 0; i < options.length; i++) {
-      await pollMessage.react(REACTIONS[i]);
-    }
-
-    // Extract the correct answer
-    const answerMatch = quiz.match(/Answer: (.*?)(?=\n|$)/);
-    const correctAnswer = answerMatch ? answerMatch[1].trim() : '';
-
-    // Send the answer after 30 seconds
-    setTimeout(async () => {
-      await channel.send(`正解: ${correctAnswer}`);
-    }, 30000);
+    await sendQuiz(quiz, channel, false);
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
   }
@@ -1705,7 +1363,7 @@ Do not include greetings, lesson titles, or number the sections.`
 schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
   try {
     console.log('Starting scheduled English quiz...');
-    const quiz = await generateEnglishComprehensionQuiz();
+    const quiz = await generateComprehensionQuiz('english');
     
     if (!quiz) {
       console.error('Failed to generate English quiz');
@@ -1718,112 +1376,7 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
       return;
     }
     
-    console.log('Generated quiz:', quiz);
-    
-    // Extract the English paragraph
-    const enMatch = quiz.match(/EN: (.*?)(?=\n\n|$)/s);
-    const question = enMatch ? enMatch[1].trim() : 'English paragraph';
-    
-    console.log('Extracted question:', question);
-
-    // Send the audio file using long text handler to avoid TTS length issues
-    try {
-      const audioBuffer = await getTTSBufferForLongText(question, true);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-quiz-audio.mp3' });
-      await channel.send({
-        content: `@everyone **Daily English Quiz**\n${question}`,
-        files: [audioAttachment]
-      });
-    } catch (ttsError) {
-      console.error('TTS error, sending without audio:', ttsError);
-      await channel.send({
-        content: `@everyone **Daily English Quiz**\n${question}`
-      });
-    }
-
-    // Extract the options more robustly
-    const optionsMatch = quiz.match(/Options:\n(.*?)(?=\n\n|$)/s);
-    let options = [];
-    
-    if (optionsMatch) {
-      const optionsText = optionsMatch[1];
-      // Try to extract options with different patterns
-      const optionPatterns = [
-        /- Option ([A-D]): (.*?)(?=\n- Option|$)/g,
-        /([A-D]): (.*?)(?=\n[A-D]:|$)/g,
-        /Option ([A-D]): (.*?)(?=\nOption|$)/g
-      ];
-      
-      for (const pattern of optionPatterns) {
-        const matches = [...optionsText.matchAll(pattern)];
-        if (matches.length >= 4) {
-          options = matches.map(match => match[2].trim());
-          break;
-        }
-      }
-    }
-    
-    // Fallback: if no options found, create simple A, B, C, D options
-    if (options.length === 0) {
-      options = ['Option A', 'Option B', 'Option C', 'Option D'];
-    }
-    
-    console.log('Extracted options:', options);
-
-    // Create a poll with the options
-    const pollMessage = await channel.send({
-      poll: {
-        question: { text: 'この英文の意味として最も適切なのは？' },
-        answers: options.map((opt, i) => ({ text: String.fromCharCode(65 + i) }))
-      }
-    });
-
-    // Add reactions for each option
-    for (let i = 0; i < Math.min(options.length, REACTIONS.length); i++) {
-      try {
-        await pollMessage.react(REACTIONS[i]);
-      } catch (reactError) {
-        console.error('Error adding reaction:', reactError);
-      }
-    }
-
-    // Extract the correct answer
-    const answerMatch = quiz.match(/Answer: ([A-D])/i);
-    const correctAnswer = answerMatch ? answerMatch[1].toUpperCase() : 'A';
-    
-    console.log('Correct answer:', correctAnswer);
-
-    // Send the answer after 30 seconds
-    setTimeout(async () => {
-      try {
-        // Extract explanation from the quiz content
-        const explanationMatch = quiz.match(/Explanation:\s*([\s\S]*?)(?=\n\n|$)/i);
-        const explanation = explanationMatch ? explanationMatch[1].trim() : '';
-        
-        // Send the explanation message with the correct answer
-        await channel.send(`✅ **Correct answer:** ${correctAnswer}\n${explanation}`);
-        
-        // End the poll by editing the message
-        await pollMessage.edit({
-          poll: {
-            question: { text: 'この英文の意味として最も適切なのは？' },
-            answers: options.map((opt, i) => ({ text: String.fromCharCode(65 + i) })),
-            duration: 0 // This effectively ends the poll
-          }
-        });
-        
-        console.log('Answer revealed and poll ended successfully');
-      } catch (answerError) {
-        console.error('Error sending answer:', answerError);
-        // Fallback: just send the answer if explanation fails
-        try {
-          await channel.send(`正解: ${correctAnswer}`);
-        } catch (fallbackError) {
-          console.error('Error sending fallback answer:', fallbackError);
-        }
-      }
-    }, 30000);
-    
+    await sendQuiz(quiz, channel, true);
     console.log('Scheduled English quiz completed successfully');
   } catch (err) {
     console.error('Error generating scheduled English quiz:', err);
