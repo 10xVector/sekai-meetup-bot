@@ -150,18 +150,22 @@ const REACTIONS = ['🇦', '🇧', '🇨', '🇩'];
 async function getTTSBuffer(text) {
   // Randomly select a voice once per function call
   const selectedVoice = JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
-  
+  return getTTSBufferWithVoice(text, selectedVoice);
+}
+
+// Helper function to generate TTS with a specific voice
+async function getTTSBufferWithVoice(text, voice) {
   const [response] = await ttsClient.synthesizeSpeech({
     input: { text },
     voice: { 
       languageCode: 'ja-JP',
-      name: selectedVoice.name,
-      ssmlGender: selectedVoice.ssmlGender
+      name: voice.name,
+      ssmlGender: voice.ssmlGender
     },
     audioConfig: { 
       audioEncoding: 'MP3',
-      speakingRate: selectedVoice.speakingRate,
-      pitch: selectedVoice.pitch
+      speakingRate: voice.speakingRate,
+      pitch: voice.pitch
     },
   });
   return Buffer.from(response.audioContent, 'binary');
@@ -170,13 +174,17 @@ async function getTTSBuffer(text) {
 async function getEnglishTTSBuffer(text) {
   // Randomly select a voice once per function call
   const selectedVoice = ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)];
-  
+  return getEnglishTTSBufferWithVoice(text, selectedVoice);
+}
+
+// Helper function to generate English TTS with a specific voice
+async function getEnglishTTSBufferWithVoice(text, voice) {
   const request = {
     input: { text },
     voice: { 
       languageCode: 'en-US',
-      name: selectedVoice.name,
-      ssmlGender: selectedVoice.ssmlGender
+      name: voice.name,
+      ssmlGender: voice.ssmlGender
     },
     audioConfig: { 
       audioEncoding: 'MP3',
@@ -191,6 +199,11 @@ async function getEnglishTTSBuffer(text) {
 
 // Helper function to split text into chunks for TTS
 async function getTTSBufferForLongText(text, isEnglish = false) {
+  // Select a voice once for the entire paragraph
+  const selectedVoice = isEnglish ? 
+    ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)] :
+    JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
+  
   // Split text into sentences
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
   const audioBuffers = [];
@@ -198,9 +211,10 @@ async function getTTSBufferForLongText(text, isEnglish = false) {
   for (const sentence of sentences) {
     const trimmedSentence = sentence.trim();
     if (trimmedSentence) {
+      // Use the same voice for all sentences
       const buffer = isEnglish ? 
-        await getEnglishTTSBuffer(trimmedSentence) : 
-        await getTTSBuffer(trimmedSentence);
+        await getEnglishTTSBufferWithVoice(trimmedSentence, selectedVoice) : 
+        await getTTSBufferWithVoice(trimmedSentence, selectedVoice);
       audioBuffers.push(buffer);
     }
   }
