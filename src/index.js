@@ -241,22 +241,16 @@ client.on('messageCreate', async message => {
 
 Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
 
-Format the response into exactly 3 clearly separated blocks (using \n\n):
+Format the response into exactly 2 clearly separated blocks (using \n\n):
 
-❓ Question:
+**Today's small talk**
+**EN: <English translation>  
 JP: <natural Japanese question related to the theme>  
-Romaji: <Romaji version>  
-EN: <English translation>
+Romaji: <Romaji version>**
 
-✍️ Fill-in-the-Blank:
+EN: <English sentence with blank>  
 JP: <Japanese sentence with a blank or missing part (use ___)>  
-Romaji: <Romaji version with blank>  
-EN: <English sentence with blank>
-
-💬 Example Answer:
-JP: <Completed Japanese sentence using a realistic word in the blank>  
-Romaji: <Romaji version>  
-EN: <Natural English translation>
+Romaji: <Romaji version with blank>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -277,7 +271,7 @@ Do not include greetings, lesson titles, or number the sections.`
       await message.reply({ embeds: [embed] });
 
       // Generate the card image from the smalltalk text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
       await message.channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
     } catch (err) {
       console.error('Error fetching from OpenAI or generating image:', err);
@@ -339,22 +333,16 @@ Do not include greetings, lesson titles, or number the sections.`
 
 Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
 
-Format the response into exactly 3 clearly separated blocks (using \n\n):
+Format the response into exactly 2 clearly separated blocks (using \n\n):
 
-❓ Question:
+**Today's small talk**
+**EN: <English translation>  
 JP: <natural Japanese question related to the theme>  
-Romaji: <Romaji version>  
-EN: <English translation>
+Romaji: <Romaji version>**
 
-✍️ Fill-in-the-Blank:
+EN: <English sentence with blank>  
 JP: <Japanese sentence with a blank or missing part (use ___)>  
-Romaji: <Romaji version with blank>  
-EN: <English sentence with blank>
-
-💬 Example Answer:
-JP: <Completed Japanese sentence using a realistic word in the blank>  
-Romaji: <Romaji version>  
-EN: <Natural English translation>
+Romaji: <Romaji version with blank>
 
 Do not include greetings, lesson titles, or number the sections.`
           },
@@ -368,7 +356,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the smalltalk text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
 
       // Send to all configured smalltalk channels
       for (const channelId of SMALLTALK_CHANNEL_IDS) {
@@ -425,7 +413,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the word text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply);
       await message.channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
 
       // Extract the example sentence and generate audio
@@ -483,7 +471,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply);
       await message.channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
 
       // Extract the example sentence and generate audio
@@ -495,7 +483,7 @@ Do not include greetings, lesson titles, or number the sections.`
         await message.channel.send({ files: [audioAttachment] });
       }
       // Add prompt for users to create their own examples
-      await message.channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+      await message.channel.send("💡 Try creating your own example sentence using this grammar point! Feel free to share it in the chat.");
     } catch (err) {
       console.error('Error fetching from OpenAI or generating image:', err);
       message.reply('Sorry, something went wrong while generating the grammar point of the day.');
@@ -580,7 +568,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the word text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
 
       // Send to the word channel or current channel if no channel ID is set
       const channel = JAPANESE_WORD_CHANNEL_ID ? 
@@ -677,7 +665,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the word text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
 
       // Send to the English word channel or current channel if no channel ID is set
       const channel = ENGLISH_WORD_CHANNEL_ID ? 
@@ -776,7 +764,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
 
       // Send to the grammar channel or current channel if no channel ID is set
       const channel = JAPANESE_GRAMMAR_CHANNEL_ID ? 
@@ -872,7 +860,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
 
       // Send to the English grammar channel or current channel if no channel ID is set
       const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
@@ -968,7 +956,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = generateCardImage(reply);
+      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
 
       // Send to the English grammar channel or current channel if no channel ID is set
       const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
@@ -1310,7 +1298,7 @@ Do not include greetings, lesson titles, or number the sections.`
     const reply = completion.choices[0].message.content;
 
     // Generate the card image from the word text
-    const imageBuffer = generateCardImage(reply);
+    const imageBuffer = await generateCardImage(reply);
 
     // Send to the word channel
     const channel = client.channels.cache.get(JAPANESE_WORD_CHANNEL_ID);
@@ -1376,7 +1364,7 @@ Do not include greetings, lesson titles, or number the sections.`
     const reply = completion.choices[0].message.content;
 
     // Generate the card image from the grammar text
-    const imageBuffer = generateCardImage(reply);
+    const imageBuffer = await generateCardImage(reply);
 
     // Send to the grammar channel
     const channel = client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID);
@@ -1396,7 +1384,7 @@ Do not include greetings, lesson titles, or number the sections.`
       await channel.send({ files: [audioAttachment] });
     }
     // Add prompt for users to create their own examples
-    await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    await channel.send("💡 Try creating your own example sentence using this grammar point! Feel free to share it in the chat.");
   } catch (err) {
     console.error('Error generating scheduled grammar:', err);
   }
