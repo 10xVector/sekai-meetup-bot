@@ -1,5 +1,27 @@
 const { createCanvas, registerFont, loadImage } = require('canvas');
+const fs = require('fs');
+const path = require('path');
 registerFont(__dirname + '/../fonts/NotoSansJP-Regular.ttf', { family: 'NotoSansJP' });
+
+// Function to get a random background image from the backgrounds folder
+function getRandomBackgroundImage() {
+  try {
+    const backgroundsDir = path.join(__dirname, 'backgrounds');
+    const files = fs.readdirSync(backgroundsDir);
+    const backgroundFiles = files.filter(file => file.startsWith('background-') && file.endsWith('.png'));
+    
+    if (backgroundFiles.length === 0) {
+      return null; // No background images found
+    }
+    
+    // Randomly select a background image
+    const randomFile = backgroundFiles[Math.floor(Math.random() * backgroundFiles.length)];
+    return path.join(backgroundsDir, randomFile);
+  } catch (err) {
+    console.error('Error reading backgrounds directory:', err);
+    return null;
+  }
+}
 
 // Optionally, register a custom font here if you want
 // registerFont('path/to/font.ttf', { family: 'CustomFont' });
@@ -107,6 +129,11 @@ function processBoldBlock(ctx, block, x, y, maxWidth, lineHeight) {
 }
 
 module.exports = async function generateCardImage(smalltalkText, backgroundImagePath = null) {
+  // If no background image is provided, use a random one from the backgrounds folder
+  if (!backgroundImagePath) {
+    backgroundImagePath = getRandomBackgroundImage();
+  }
+
   // Remove emojis and rename 'Fill-in-the-Blank' to 'Example'
   let processedText = smalltalkText
     .replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu, '') // Remove emojis

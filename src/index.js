@@ -271,7 +271,7 @@ Do not include greetings, lesson titles, or number the sections.`
       await message.reply({ embeds: [embed] });
 
       // Generate the card image from the smalltalk text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
       await message.channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
     } catch (err) {
       console.error('Error fetching from OpenAI or generating image:', err);
@@ -356,7 +356,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the smalltalk text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
 
       // Send to all configured smalltalk channels
       for (const channelId of SMALLTALK_CHANNEL_IDS) {
@@ -568,7 +568,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the word text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
 
       // Send to the word channel or current channel if no channel ID is set
       const channel = JAPANESE_WORD_CHANNEL_ID ? 
@@ -665,7 +665,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the word text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
 
       // Send to the English word channel or current channel if no channel ID is set
       const channel = ENGLISH_WORD_CHANNEL_ID ? 
@@ -764,7 +764,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
 
       // Send to the grammar channel or current channel if no channel ID is set
       const channel = JAPANESE_GRAMMAR_CHANNEL_ID ? 
@@ -860,7 +860,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
 
       // Send to the English grammar channel or current channel if no channel ID is set
       const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
@@ -956,7 +956,7 @@ Do not include greetings, lesson titles, or number the sections.`
       const reply = completion.choices[0].message.content;
 
       // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply, __dirname + '/sekai-background.png');
+      const imageBuffer = await generateCardImage(reply);
 
       // Send to the English grammar channel or current channel if no channel ID is set
       const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
