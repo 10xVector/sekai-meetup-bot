@@ -204,7 +204,18 @@ async function getTTSBufferForLongText(text, isEnglish = false) {
     ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)] :
     JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
   
-  // Split text into sentences
+  // Try to process the entire text as one piece first (if it's within reasonable length)
+  // Google Cloud TTS has a limit of ~5000 characters per request
+  const MAX_SINGLE_REQUEST = 4000; // Conservative limit
+  
+  if (text.length <= MAX_SINGLE_REQUEST) {
+    // Process entire text with one voice
+    return isEnglish ? 
+      await getEnglishTTSBufferWithVoice(text, selectedVoice) : 
+      await getTTSBufferWithVoice(text, selectedVoice);
+  }
+  
+  // If text is too long, split into sentences but use the same voice
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
   const audioBuffers = [];
 
