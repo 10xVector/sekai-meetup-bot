@@ -164,13 +164,13 @@ module.exports = async function generateCardImage(smalltalkText, backgroundImage
   const lineHeight = 36; // Increased line height for better readability
 
   // Calculate header height based on background image if provided
-  let headerHeight = Math.floor(baseHeight / 4); // Default header height
+  let headerHeight = 200; // Fixed reasonable header height
   if (backgroundImagePath) {
     try {
       const img = await loadImage(backgroundImagePath);
-      // Calculate header height to fit the full image width while maintaining aspect ratio
-      const scale = Math.min(maxWidth, Math.max(minWidth, 800)) / img.width;
-      headerHeight = Math.floor(img.height * scale);
+      // Use a fixed header height to prevent stretching
+      // The image will be properly scaled and centered within this height
+      headerHeight = 200;
     } catch (err) {
       console.error('Failed to load background image for height calculation:', err);
       // Keep default header height
@@ -241,12 +241,28 @@ module.exports = async function generateCardImage(smalltalkText, backgroundImage
       // Load and draw background image in header
       const img = await loadImage(backgroundImagePath);
       
-      // Scale image to fit full header width while maintaining aspect ratio
-      const scale = width / img.width;
-      const scaledHeight = img.height * scale;
+      // Calculate dimensions to maintain aspect ratio
+      const imageAspectRatio = img.width / img.height;
+      const headerAspectRatio = width / headerHeight;
       
-      // Draw the entire image in the header area
-      ctx.drawImage(img, 0, 0, width, headerHeight);
+      let drawWidth, drawHeight, drawX, drawY;
+      
+      if (imageAspectRatio > headerAspectRatio) {
+        // Image is wider than header - fit to width, center vertically
+        drawWidth = width;
+        drawHeight = width / imageAspectRatio;
+        drawX = 0;
+        drawY = (headerHeight - drawHeight) / 2;
+      } else {
+        // Image is taller than header - fit to height, center horizontally
+        drawHeight = headerHeight;
+        drawWidth = headerHeight * imageAspectRatio;
+        drawX = (width - drawWidth) / 2;
+        drawY = 0;
+      }
+      
+      // Draw the image maintaining aspect ratio
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
     } catch (err) {
       console.error('Failed to load background image:', err);
       // Fallback to default blue background

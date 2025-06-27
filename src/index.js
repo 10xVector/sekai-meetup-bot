@@ -1166,18 +1166,18 @@ async function sendQuiz(quiz, channel, isEnglish = false) {
       if (optMatch) options.push(optMatch[1].trim());
     }
 
-    // Send the options as a message with descriptive text
+    // Send the options as a message with descriptive text (full options for reference)
     const optionLabels = ['a', 'b', 'c', 'd'];
     let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
     await channel.send(
       `**Options:**\n${optionsText}`
     );
 
-    // Create a poll with descriptive options
+    // Create a poll with just the letter options
     const pollMessage = await channel.send({
       poll: {
         question: { text: isEnglish ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
-        answers: options.map((opt, i) => ({ text: opt }))
+        answers: optionLabels.map(letter => ({ text: letter }))
       }
     });
 
