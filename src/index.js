@@ -239,7 +239,7 @@ function parseReminderCommand(content) {
   const args = content.split(' ').filter(arg => arg.length > 0);
   
   if (args.length < 3) {
-    return { error: 'Usage: !reminder <channel_id> <meetup_link> [date time] [title]\nExample: !reminder 123456789 https://meetup.com/group/events/123 "2024-01-15 18:00" "Monthly Meetup"' };
+    return { error: 'Usage: !reminder <channel_id> <meetup_link> "date time" [title] [timezone]\nExample: !reminder 123456789 https://meetup.com/group/events/123 "2024-01-15 18:00" "Monthly Meetup" "PST"' };
   }
   
   const channelId = args[1];
@@ -255,9 +255,10 @@ function parseReminderCommand(content) {
     return { error: 'Invalid meetup link. Please provide a valid URL.' };
   }
   
-  // Extract optional date/time and title from quoted strings
+  // Extract optional date/time, title, and timezone from quoted strings
   let dateTime = null;
   let title = null;
+  let timezone = 'JST'; // Default timezone
   
   // Join the rest of the args and look for quoted strings
   const restOfCommand = args.slice(3).join(' ');
@@ -271,9 +272,14 @@ function parseReminderCommand(content) {
     if (quotedStrings.length > 1) {
       title = quotedStrings[1].replace(/"/g, '');
     }
+    
+    // Third quoted string (if exists) is timezone
+    if (quotedStrings.length > 2) {
+      timezone = quotedStrings[2].replace(/"/g, '');
+    }
   }
   
-  return { channelId, meetupLink, dateTime, title };
+  return { channelId, meetupLink, dateTime, title, timezone };
 }
 
 
@@ -1170,7 +1176,7 @@ Do not include greetings, lesson titles, or number the sections.`
         return message.reply(parsed.error);
       }
       
-      const { channelId, meetupLink, dateTime, title: customTitle } = parsed;
+      const { channelId, meetupLink, dateTime, title: customTitle, timezone } = parsed;
       
       // Verify the channel exists
       const targetChannel = client.channels.cache.get(channelId);
@@ -1209,7 +1215,7 @@ Do not include greetings, lesson titles, or number the sections.`
         .setTitle('🔔 Upcoming Practice Session Reminder / 練習セッションのお知らせ')
         .setDescription(`**${eventTitle}**`)
         .addFields(
-          { name: '📅 Date & Time / 日時', value: eventDate.toLocaleString(), inline: true },
+          { name: '📅 Date & Time / 日時', value: `${eventDate.toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} ${timezone}`, inline: true },
           { name: '📍 Location / 場所', value: location || 'See event page / イベントページを確認', inline: true },
           { name: '🔗 Event Link / イベントリンク', value: `[Join the event / 参加する](${meetupLink})`, inline: false }
         );
