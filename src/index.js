@@ -234,6 +234,90 @@ async function getTTSBufferForLongText(text, isEnglish = false) {
   return Buffer.concat(audioBuffers);
 }
 
+// Helper function to parse reminder command
+function parseReminderCommand(content) {
+  const args = content.split(' ').filter(arg => arg.length > 0);
+  
+  if (args.length < 3) {
+    return { error: 'Usage: !reminder <channel_id> <meetup_link> [date time] [title]\nExample: !reminder 123456789 https://meetup.com/group/events/123 "2024-01-15 18:00" "Monthly Meetup"' };
+  }
+  
+  const channelId = args[1];
+  const meetupLink = args[2];
+  
+  // Basic validation for channel ID (Discord IDs are numeric strings)
+  if (!/^\d+$/.test(channelId)) {
+    return { error: 'Invalid channel ID. Please provide a valid numeric channel ID.' };
+  }
+  
+  // Basic validation for meetup link
+  if (!meetupLink.startsWith('http')) {
+    return { error: 'Invalid meetup link. Please provide a valid URL.' };
+  }
+  
+  // Extract optional date/time and title from quoted strings
+  let dateTime = null;
+  let title = null;
+  
+  // Join the rest of the args and look for quoted strings
+  const restOfCommand = args.slice(3).join(' ');
+  const quotedStrings = restOfCommand.match(/"([^"]+)"/g);
+  
+  if (quotedStrings && quotedStrings.length > 0) {
+    // First quoted string is date/time
+    dateTime = quotedStrings[0].replace(/"/g, '');
+    
+    // Second quoted string (if exists) is title
+    if (quotedStrings.length > 1) {
+      title = quotedStrings[1].replace(/"/g, '');
+    }
+  }
+  
+  return { channelId, meetupLink, dateTime, title };
+}
+
+
+// Helper function to fetch meetup event details
+async function fetchMeetupEventDetails(meetupLink) {
+  try {
+    // Extract meetup.com event ID from various URL formats
+    // Examples: 
+    // https://www.meetup.com/group-name/events/123456789/
+    // https://meetup.com/group-name/events/123456789
+    // https://www.meetup.com/meetup-group-name/events/123456789/?eventId=123456789
+    
+    const meetupUrlPattern = /meetup\.com\/([^\/]+)\/events\/(\d+)/i;
+    const match = meetupLink.match(meetupUrlPattern);
+    
+    if (!match) {
+      return { error: 'Invalid Meetup URL format. Please provide a valid Meetup event link.' };
+    }
+    
+    const groupName = match[1];
+    const eventId = match[2];
+    
+    // For now, we'll return a structure that allows manual date/time input
+    // In production, you would:
+    // 1. Use Meetup API with proper authentication
+    // 2. Or use a web scraping library like puppeteer
+    // 3. Or require users to manually provide date/time
+    
+    return {
+      title: `Event from ${groupName}`,
+      date: null, // Will need to be provided manually
+      description: 'Meetup Event',
+      location: 'See event page for details',
+      eventId: eventId,
+      groupName: groupName,
+      needsManualDate: true
+    };
+    
+  } catch (error) {
+    console.error('Error parsing meetup URL:', error);
+    return { error: 'Failed to parse Meetup URL. Please check the URL and try again.' };
+  }
+}
+
 client.once('ready', () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
@@ -1074,6 +1158,73 @@ Do not include greetings, lesson titles, or number the sections.`
     } catch (err) {
       console.error('Error sending message:', err);
       message.reply('Sorry, something went wrong while sending the message.');
+    }
+  }
+
+  if (message.content.startsWith('!reminder')) {
+    try {
+      // Parse the command
+      const parsed = parseReminderCommand(message.content);
+      
+      if (parsed.error) {
+        return message.reply(parsed.error);
+      }
+      
+      const { channelId, meetupLink, dateTime, title: customTitle } = parsed;
+      
+      // Verify the channel exists
+      const targetChannel = client.channels.cache.get(channelId);
+      if (!targetChannel) {
+        return message.reply(`Channel with ID ${channelId} not found.`);
+      }
+      
+      // Fetch event details from the meetup link
+      const eventDetails = await fetchMeetupEventDetails(meetupLink);
+      
+      if (eventDetails.error) {
+        return message.reply(`❌ ${eventDetails.error}`);
+      }
+      
+      // Use custom title if provided, otherwise use the one from eventDetails
+      const eventTitle = customTitle || eventDetails.title;
+      
+      // Parse the date/time if provided
+      let eventDate = null;
+      if (dateTime) {
+        eventDate = new Date(dateTime);
+        if (isNaN(eventDate.getTime())) {
+          return message.reply('❌ Invalid date/time format. Please use format like "2024-01-15 18:00"');
+        }
+      } else if (!eventDetails.needsManualDate && eventDetails.date) {
+        eventDate = eventDetails.date;
+      } else {
+        return message.reply('❌ Please provide date and time in quotes. Example: !reminder 123456789 https://meetup.com/... "2024-01-15 18:00"');
+      }
+      
+      const location = eventDetails.location;
+      
+      // Create the reminder embed
+      const embed = new EmbedBuilder()
+        .setColor(0xFF0000)
+        .setTitle('🔔 Upcoming Practice Session Reminder / 練習セッションのお知らせ')
+        .setDescription(`**${eventTitle}**`)
+        .addFields(
+          { name: '📅 Date & Time / 日時', value: eventDate.toLocaleString(), inline: true },
+          { name: '📍 Location / 場所', value: location || 'See event page / イベントページを確認', inline: true },
+          { name: '🔗 Event Link / イベントリンク', value: `[Join the event / 参加する](${meetupLink})`, inline: false }
+        );
+      
+      // Send the reminder immediately to the target channel
+      await targetChannel.send({
+        content: '@everyone',
+        embeds: [embed]
+      });
+      
+      // Confirm the reminder was sent
+      await message.reply(`✅ Reminder sent to ${targetChannel.name}!`);
+    } catch (err) {
+      console.error('Error sending reminder:', err);
+      message.reply('Sorry, something went wrong while sending the reminder.');
     }
   }
 });
