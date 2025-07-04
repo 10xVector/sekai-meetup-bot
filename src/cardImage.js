@@ -27,51 +27,56 @@ function getRandomBackgroundImage() {
 // registerFont('path/to/font.ttf', { family: 'CustomFont' });
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  // Split by both spaces and newlines
-  const words = text.split(/\s+/);
-  let lines = [];
-  let currentLine = '';
-
-  for (let word of words) {
-    // If the word itself is longer than maxWidth, we need to split it
-    if (ctx.measureText(word).width > maxWidth) {
-      // If we have a current line, add it first
-      if (currentLine) {
-        lines.push(currentLine);
-        currentLine = '';
-      }
-      // Split the long word into characters
-      let chars = word.split('');
-      let tempWord = '';
-      for (let char of chars) {
-        if (ctx.measureText(tempWord + char).width <= maxWidth) {
-          tempWord += char;
-        } else {
-          if (tempWord) lines.push(tempWord);
-          tempWord = char;
+  // First split by newlines to preserve intentional line breaks
+  const paragraphs = text.split('\n');
+  let allLines = [];
+  
+  for (let paragraph of paragraphs) {
+    // Then split each paragraph by spaces for word wrapping
+    const words = paragraph.split(' ');
+    let currentLine = '';
+    
+    for (let word of words) {
+      // If the word itself is longer than maxWidth, we need to split it
+      if (ctx.measureText(word).width > maxWidth) {
+        // If we have a current line, add it first
+        if (currentLine) {
+          allLines.push(currentLine);
+          currentLine = '';
         }
+        // Split the long word into characters
+        let chars = word.split('');
+        let tempWord = '';
+        for (let char of chars) {
+          if (ctx.measureText(tempWord + char).width <= maxWidth) {
+            tempWord += char;
+          } else {
+            if (tempWord) allLines.push(tempWord);
+            tempWord = char;
+          }
+        }
+        if (tempWord) allLines.push(tempWord);
+        continue;
       }
-      if (tempWord) lines.push(tempWord);
-      continue;
-    }
 
-    // Test if adding this word would exceed the maxWidth
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(testLine).width <= maxWidth) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
+      // Test if adding this word would exceed the maxWidth
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(testLine).width <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) allLines.push(currentLine);
+        currentLine = word;
+      }
     }
+    if (currentLine) allLines.push(currentLine);
   }
-  if (currentLine) lines.push(currentLine);
 
   // Draw all lines
-  for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], x, y + i * lineHeight);
+  for (let i = 0; i < allLines.length; i++) {
+    ctx.fillText(allLines[i], x, y + i * lineHeight);
   }
 
-  return y + lines.length * lineHeight;
+  return y + allLines.length * lineHeight;
 }
 
 function wrapTextWithBold(ctx, text, x, y, maxWidth, lineHeight) {
@@ -153,28 +158,16 @@ module.exports = async function generateCardImage(smalltalkText, backgroundImage
     blocks[0] = blocks[0].replace(/\*\*/g, '');
   }
 
-  const minWidth = 800;
-  const maxWidth = 1200;
+  // Removed minWidth and maxWidth - using fixed width instead
   const leftPad = 50;
   const titleHeight = 48;
   const blockSpacing = 10;
   const lineHeight = 36;
   const baseHeight = 800;
 
-  // 1. Measure text to determine required width
-  const tempCanvas = createCanvas(minWidth, baseHeight);
-  const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.font = '26px NotoSansJP';
-  let maxLineWidth = 0;
-  for (const block of blocks) {
-    const lines = block.split('\n');
-    for (const line of lines) {
-      const width = tempCtx.measureText(line).width;
-      maxLineWidth = Math.max(maxLineWidth, width);
-    }
-  }
-  const contentWidth = Math.min(Math.max(maxLineWidth + 2 * leftPad, minWidth), maxWidth);
-  const width = contentWidth;
+  // 1. Set a reasonable fixed width for better text wrapping
+  const width = 900; // Fixed width that works well for most content
+  const contentWidth = width;
 
   // 2. Load background and calculate header height based on width
   let headerHeight = 200;
@@ -188,7 +181,12 @@ module.exports = async function generateCardImage(smalltalkText, backgroundImage
     }
   }
 
-  // 3. Measure height with proper text wrapping
+  // 3. Create temporary context for height calculation
+  const tempCanvas = createCanvas(width, baseHeight);
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.font = '26px NotoSansJP';
+  
+  // Measure height with proper text wrapping
   let y = headerHeight + 50 + titleHeight;
   for (const block of blocks) {
     const lines = block.split('\n');

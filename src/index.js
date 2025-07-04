@@ -338,26 +338,52 @@ client.on('messageCreate', async message => {
         messages: [
           {
             role: 'system',
-            content: `You are a language tutor generating a Japanese-English small talk activity formatted like a classroom practice card.
+            content: `You are a language tutor generating a Japanese-English small talk activity with grammar practice.
 
-Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
+Create SHORT, SIMPLE questions that fit on a card display. Keep questions under 10 words when possible.
+
+Use varied everyday topics, rotating between:
+- Hobbies (beyond just "sports" - include reading, gaming, cooking, music, art, etc.)
+- Daily routines (morning, work, study habits)
+- Weekend activities
+- Favorite places (cafes, parks, shops)
+- Seasons and weather preferences
+- Food and drinks (specific dishes, not just "do you like food")
+- Technology use
+- Travel and vacations
+- Movies, books, shows
+- Pets and animals
+- Shopping habits
+- Exercise and health
+- Friends and social activities
+- Work or school life
+- Local area and neighborhoods
+
+AVOID: Repetitive "Do you like X?" questions. Mix up question types.
 
 Format the response into exactly 2 clearly separated blocks (using \n\n):
 
 **Today's small talk**
-**EN: <English translation>  
-JP: <natural Japanese question related to the theme>  
+**EN: <Short English question - max 10 words>  
+JP: <Short natural Japanese question>  
 Romaji: <Romaji version>**
 
-EN: <English sentence with blank>  
-JP: <Japanese sentence with a blank or missing part (use ___)>  
-Romaji: <Romaji version with blank>
+EN: <Simple English sentence with blank>  
+JP: <Simple Japanese sentence with ___ for grammar practice>  
+Romaji: <Romaji with blank>
 
-Do not include greetings, lesson titles, or number the sections.`
+For grammar practice, vary between:
+- Single particles (は、が、を、に、で、へ、から、まで、と、も、より、の、etc.)
+- Casual grammar patterns (たい、たり、ちゃう/じゃう、てる、たことがある、たほうがいい、なきゃ、etc.)
+- Conjunctions (けど、のに、から、ので、し、etc.)
+- Sentence endings (よね、かな、じゃん、でしょ、だろう、etc.)
+- Common expressions (そうだ、みたい、らしい、はず、かもしれない、etc.)
+
+Keep everything concise, natural, and conversational.`
           },
           {
             role: 'user',
-            content: 'Give me a Japanese-English language small talk prompt.'
+            content: 'Generate a Japanese-English small talk prompt with an interesting, varied topic. Avoid repetitive themes like basic sports or ice cream.'
           }
         ]
       });
@@ -430,26 +456,52 @@ Do not include greetings, lesson titles, or number the sections.`
         messages: [
           {
             role: 'system',
-            content: `You are a language tutor generating a Japanese-English small talk activity formatted like a classroom practice card.
+            content: `You are a language tutor generating a Japanese-English small talk activity with grammar practice.
 
-Each time, pick a different theme from a wide range of everyday topics (e.g., food, travel, hobbies, weather, school, work, family, shopping, technology, sports, etc.). Avoid repeating the same theme as previous cards.
+Create SHORT, SIMPLE questions that fit on a card display. Keep questions under 10 words when possible.
+
+Use varied everyday topics, rotating between:
+- Hobbies (beyond just "sports" - include reading, gaming, cooking, music, art, etc.)
+- Daily routines (morning, work, study habits)
+- Weekend activities
+- Favorite places (cafes, parks, shops)
+- Seasons and weather preferences
+- Food and drinks (specific dishes, not just "do you like food")
+- Technology use
+- Travel and vacations
+- Movies, books, shows
+- Pets and animals
+- Shopping habits
+- Exercise and health
+- Friends and social activities
+- Work or school life
+- Local area and neighborhoods
+
+AVOID: Repetitive "Do you like X?" questions. Mix up question types.
 
 Format the response into exactly 2 clearly separated blocks (using \n\n):
 
 **Today's small talk**
-**EN: <English translation>  
-JP: <natural Japanese question related to the theme>  
+**EN: <Short English question - max 10 words>  
+JP: <Short natural Japanese question>  
 Romaji: <Romaji version>**
 
-EN: <English sentence with blank>  
-JP: <Japanese sentence with a blank or missing part (use ___)>  
-Romaji: <Romaji version with blank>
+EN: <Simple English sentence with blank>  
+JP: <Simple Japanese sentence with ___ for grammar practice>  
+Romaji: <Romaji with blank>
 
-Do not include greetings, lesson titles, or number the sections.`
+For grammar practice, vary between:
+- Single particles (は、が、を、に、で、へ、から、まで、と、も、より、の、etc.)
+- Casual grammar patterns (たい、たり、ちゃう/じゃう、てる、たことがある、たほうがいい、なきゃ、etc.)
+- Conjunctions (けど、のに、から、ので、し、etc.)
+- Sentence endings (よね、かな、じゃん、でしょ、だろう、etc.)
+- Common expressions (そうだ、みたい、らしい、はず、かもしれない、etc.)
+
+Keep everything concise, natural, and conversational.`
           },
           {
             role: 'user',
-            content: 'Give me a Japanese-English language small talk prompt.'
+            content: 'Generate a Japanese-English small talk prompt with an interesting, varied topic. Avoid repetitive themes like basic sports or ice cream.'
           }
         ]
       });

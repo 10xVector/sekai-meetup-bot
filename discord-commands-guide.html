@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sekai Buddy - Discord Commands Guide</title>
+    <style>
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; }
+            .page-break { page-break-after: always; }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #5865F2;
+            border-bottom: 3px solid #5865F2;
+            padding-bottom: 10px;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #4752C4;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        h3 {
+            color: #57F287;
+            background-color: #2C2F33;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 1.2em;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        
+        .command-section {
+            background-color: #f8f9fa;
+            border-left: 4px solid #5865F2;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .command-example {
+            background-color: #2C2F33;
+            color: #DCDDDE;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .feature-list {
+            background-color: #E3E5E8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .feature-list ul {
+            margin: 5px 0;
+            padding-left: 25px;
+        }
+        
+        .feature-list li {
+            margin: 5px 0;
+        }
+        
+        .tips-section {
+            background-color: #FEE75C;
+            background-image: linear-gradient(135deg, #FEE75C 0%, #FFD861 100%);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .tips-section h3 {
+            background-color: transparent;
+            color: #2C2F33;
+            font-size: 1.3em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #5865F2;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .toc {
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h2 {
+            margin-top: 0;
+            color: #2C2F33;
+        }
+        
+        .toc ol {
+            margin: 10px 0;
+            padding-left: 30px;
+        }
+        
+        .toc li {
+            margin: 8px 0;
+        }
+        
+        .toc a {
+            color: #5865F2;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 5px;
+        }
+        
+        .note {
+            background-color: #E3E5E8;
+            border-left: 4px solid #5865F2;
+            padding: 10px 15px;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        
+        .admin-warning {
+            background-color: #F04747;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        code {
+            background-color: #E3E5E8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sekai Buddy - Discord Commands Guide</h1>
+        
+        <p style="font-size: 1.2em; color: #666; margin-bottom: 30px;">
+            Welcome to Sekai Buddy! This guide will help you use all the bot commands. No technical knowledge needed - just follow along!
+        </p>
+        
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ol>
+                <li><a href="#getting-started">Getting Started</a></li>
+                <li><a href="#japanese-learning">Japanese Learning Commands</a></li>
+                <li><a href="#english-learning">English Learning Commands</a></li>
+                <li><a href="#community">Community Commands</a></li>
+                <li><a href="#admin">Admin Commands</a></li>
+                <li><a href="#scheduled">Scheduled Content</a></li>
+                <li><a href="#tips">Tips & Common Questions</a></li>
+            </ol>
+        </div>
+        
+        <h2 id="getting-started">Getting Started</h2>
+        
+        <div class="command-section">
+            <h3>How Commands Work</h3>
+            <p>All commands start with an exclamation mark <code>!</code>. Just type the command in any channel where Sekai Buddy is active.</p>
+            
+            <h3>Basic Format</h3>
+            <div class="command-example">
+!commandname</div>
+            <p>Some commands need extra information:</p>
+            <div class="command-example">
+!commandname information</div>
+        </div>
+        
+        <div class="page-break"></div>
+        
+        <h2 id="japanese-learning">Japanese Learning Commands</h2>
+        
+        <div class="command-section">
+            <h3>!quiz</h3>
+            <p><strong>What it does:</strong> Gives you a Japanese comprehension quiz with multiple choice answers</p>
+            <p><strong>How to use:</strong> Type <code>!quiz</code></p>
+            
+            <div class="feature-list">
+                <strong>What happens:</strong>
+                <ul>
+                    <li>Bot posts a quiz question with 4 answer choices</li>
+                    <li>Answer using Discord's poll buttons (1️⃣ 2️⃣ 3️⃣ 4️⃣)</li>
+                    <li>The correct answer is revealed after 6 hours</li>
+                    <li>Want the answer sooner? Use <code>!revealjapanesequiz</code></li>
+                </ul>
+            </div>
+            
+            <strong>Example:</strong>
+            <div class="command-example">
+You: !quiz
+Bot: [Shows a Japanese question with 4 multiple choice options as a poll]</div>
+        </div>
+        
+        <div class="command-section">
+            <h3>!word</h3>
+            <p><strong>What it does:</strong> Shows you the Japanese word of the day</p>
+            
+            <div class="feature-list">
+                <strong>Features:</strong>
+                <ul>
+                    <li>Visual card with the word in Japanese and English</li>
+                    <li>Audio pronunciation (click the audio file to hear it!)</li>
+                    <li>Example sentences</li>
+                </ul>
+            </div>
+            
+            <p><strong>How to use:</strong> Type <code>!word</code></p>
+            
+            <strong>Example:</strong>
+            <div class="command-example">
+You: !word
+Bot: [Posts a beautiful card with today's word + audio file]</div>
+        </div>
+        
+        <div class="command-section">
+            <h3>!grammar</h3>
+            <p><strong>What it does:</strong> Teaches you a Japanese grammar point</p>
+            
+            <div class="feature-list">
+                <strong>Features:</strong>
+                <ul>
+                    <li>Clear explanation with examples</li>
+                    <li>Visual card format</li>
+                    <li>Audio pronunciation of example sentences</li>
+                </ul>
+            </div>
+            
+            <p><strong>How to use:</strong> Type <code>!grammar</code></p>
+            
+            <strong>Example:</strong>
+            <div class="command-example">
+You: !grammar
+Bot: [Posts grammar lesson card with examples + audio]</div>
+        </div>
+        
+        <div class="command-section">
+            <h3>!smalltalk</h3>
+            <p><strong>What it does:</strong> Helps you practice everyday Japanese conversations</p>
+            
+            <div class="feature-list">
+                <strong>Features:</strong>
+                <ul>
+                    <li>Conversation prompt in both Japanese and English</li>
+                    <li>Visual card with the dialogue</li>
+                    <li>Great for practicing common phrases!</li>
+                </ul>
+            </div>
+            
+            <p><strong>How to use:</strong> Type <code>!smalltalk</code></p>
+            
+            <strong>Example:</strong>
+            <div class="command-example">
+You: !smalltalk
+Bot: [Posts a conversation practice card with Japanese and English]</div>
+        </div>
+        
+        <div class="page-break"></div>
+        
+        <h2 id="english-learning">English Learning Commands</h2>
+        
+        <div class="note">
+            These commands are designed for Japanese speakers learning English. Explanations are in Japanese!
+        </div>
+        
+        <div class="command-section">
+            <h3>!englishquiz</h3>
+            <p><strong>What it does:</strong> English comprehension quiz (with Japanese support)</p>
+            <p><strong>How to use:</strong> Type <code>!englishquiz</code></p>
+            
+            <div class="feature-list">
+                <strong>Features:</strong>
+                <ul>
+                    <li>Questions test English understanding</li>
+                    <li>Japanese translations provided</li>
+                    <li>Answer revealed after 6 hours (or use <code>!revealenglishquiz</code>)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="command-section">
+            <h3>!englishgrammar</h3>
+            <p><strong>What it does:</strong> English grammar lessons explained in Japanese</p>
+            <p><strong>How to use:</strong> Type <code>!englishgrammar</code></p>
+            
+            <div class="feature-list">
+                <strong>Features:</strong>
+                <ul>
+                    <li>English grammar points</li>
+                    <li>Japanese explanations</li>
+                    <li>Example sentences in both languages</li>
+                </ul>
+            </div>
+        </div>
+        
+        <h2 id="community">Community Commands</h2>
+        
+        <div class="command-section">
+            <h3>!meetups</h3>
+            <p><strong>What it does:</strong> Shows all upcoming language exchange meetups</p>
+            <p><strong>How to use:</strong> Type <code>!meetups</code></p>
+            
+            <div class="feature-list">
+                <strong>Shows:</strong>
+                <ul>
+                    <li>Event names and dates</li>
+                    <li>Links to join</li>
+                    <li>Times in your timezone</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="command-section">
+            <h3>!sync</h3>
+            <p><strong>What it does:</strong> Updates the meetup list and sets reminders</p>
+            <p><strong>How to use:</strong> Type <code>!sync</code></p>
+            <p class="note">Note: Usually only needed by moderators</p>
+        </div>
+        
+        <div class="command-section">
+            <h3>!send</h3>
+            <p><strong>What it does:</strong> Send a message to another channel through the bot</p>
+            <p><strong>How to use:</strong> <code>!send [channel-id] [your message]</code></p>
+            
+            <strong>Example:</strong>
+            <div class="command-example">
+You: !send 123456789012345678 Hello everyone! Study session starting!
+Bot: (Posts your message in that channel)</div>
+        </div>
+        
+        <div class="command-section">
+            <h3>!reminder</h3>
+            <p><strong>What it does:</strong> Set up event reminders</p>
+            <p><strong>How to use:</strong> <code>!reminder [channel-id] [meetup-link] "date time" [title] [timezone]</code></p>
+            
+            <strong>Example:</strong>
+            <div class="command-example">
+You: !reminder 123456789 https://meetup.com/event "2024-01-15 18:00" "Japanese Chat" JST
+Bot: ✅ Reminder set!</div>
+        </div>
+        
+        <div class="page-break"></div>
+        
+        <h2 id="admin">Admin Commands</h2>
+        
+        <div class="admin-warning">
+            These commands are for moderators and admins to manually trigger scheduled content.
+        </div>
+        
+        <div class="command-section">
+            <h3>Force Commands</h3>
+            <p>Use these to manually post daily content:</p>
+            <ul>
+                <li><code>!forcescheduledjapanesequiz</code> - Post the daily Japanese quiz now</li>
+                <li><code>!forcescheduledenglishquiz</code> - Post the daily English quiz now</li>
+                <li><code>!forcescheduledjapaneseword</code> - Post word of the day now</li>
+                <li><code>!forcescheduledenglishword</code> - Post English word now</li>
+                <li><code>!forcescheduledjapanesegrammar</code> - Post grammar lesson now</li>
+                <li><code>!forcescheduledenglishgrammar</code> - Post English grammar now</li>
+                <li><code>!forcescheduledsmalltalk</code> - Post small talk practice to all channels</li>
+            </ul>
+        </div>
+        
+        <div class="command-section">
+            <h3>Quiz Answers</h3>
+            <ul>
+                <li><code>!revealjapanesequiz</code> - Show the answer to current Japanese quiz</li>
+                <li><code>!revealenglishquiz</code> - Show the answer to current English quiz</li>
+            </ul>
+        </div>
+        
+        <h2 id="scheduled">Scheduled Content</h2>
+        
+        <p>Sekai Buddy automatically posts content at these times (Japan Standard Time):</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Content</th>
+                    <th>Time (JST)</th>
+                    <th>Time (UTC)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Japanese Quiz</td>
+                    <td>10:00 AM</td>
+                    <td>1:00 AM</td>
+                </tr>
+                <tr>
+                    <td>Japanese Word</td>
+                    <td>11:00 AM</td>
+                    <td>2:00 AM</td>
+                </tr>
+                <tr>
+                    <td>Japanese Grammar</td>
+                    <td>12:00 PM</td>
+                    <td>3:00 AM</td>
+                </tr>
+                <tr>
+                    <td>English Quiz</td>
+                    <td>1:00 PM</td>
+                    <td>4:00 AM</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p class="note">Note: The bot posts to specific channels set up by your server admins.</p>
+        
+        <div class="page-break"></div>
+        
+        <h2 id="tips">Tips & Common Questions</h2>
+        
+        <div class="tips-section">
+            <h3><span class="emoji">🎧</span>Audio Features</h3>
+            <p>Most learning commands include audio! Look for the audio file attachment and click to play. The bot uses natural-sounding voices in both Japanese and English.</p>
+        </div>
+        
+        <div class="tips-section">
+            <h3><span class="emoji">🖼️</span>Visual Cards</h3>
+            <p>Commands create beautiful visual cards that are easy to read and share. Perfect for screenshot studying!</p>
+        </div>
+        
+        <div class="tips-section">
+            <h3><span class="emoji">❓</span>Quiz Tips</h3>
+            <ul>
+                <li>Take your time answering quizzes</li>
+                <li>The poll will stay open for 6 hours</li>
+                <li>Can't wait? Admins can use <code>!revealjapanesequiz</code> or <code>!revealenglishquiz</code></li>
+                <li>Try to guess before revealing the answer!</li>
+            </ul>
+        </div>
+        
+        <div class="tips-section">
+            <h3><span class="emoji">📚</span>Daily Study Routine</h3>
+            <ol>
+                <li>Morning: Check <code>!word</code> for new vocabulary</li>
+                <li>Noon: Learn with <code>!grammar</code></li>
+                <li>Afternoon: Test yourself with <code>!quiz</code></li>
+                <li>Evening: Practice with <code>!smalltalk</code></li>
+            </ol>
+        </div>
+        
+        <div class="command-section">
+            <h3><span class="emoji">🤔</span>Common Issues</h3>
+            
+            <p><strong>"Command not working"</strong></p>
+            <ul>
+                <li>Make sure you typed <code>!</code> at the start</li>
+                <li>Check spelling (e.g., <code>!smalltalk</code> not <code>!small talk</code>)</li>
+                <li>Ensure the bot is online (green dot)</li>
+            </ul>
+            
+            <p><strong>"No audio playing"</strong></p>
+            <ul>
+                <li>Click the audio file attachment</li>
+                <li>Check your Discord audio settings</li>
+                <li>Make sure your device volume is up</li>
+            </ul>
+            
+            <p><strong>"Can't see the images"</strong></p>
+            <ul>
+                <li>Images might take a moment to load</li>
+                <li>Check your internet connection</li>
+                <li>Try refreshing Discord (Ctrl+R or Cmd+R)</li>
+            </ul>
+            
+            <p><strong>"Wrong timezone for meetups"</strong></p>
+            <ul>
+                <li>Meetup times auto-adjust to your Discord timezone</li>
+                <li>Check your Discord settings if times seem wrong</li>
+            </ul>
+        </div>
+        
+        <div class="tips-section">
+            <h3><span class="emoji">📱</span>Mobile Users</h3>
+            <p>All commands work on mobile! Just type them the same way. Tap audio files to play them.</p>
+        </div>
+        
+        <h2>Need Help?</h2>
+        
+        <ul>
+            <li>Ask in the chat - the community is friendly!</li>
+            <li>Tag a moderator if you're having technical issues</li>
+            <li>Most problems solve themselves if you try the command again</li>
+        </ul>
+        
+        <div class="footer">
+            <p>Happy learning! 頑張って下さい！🌸</p>
+            <p>Sekai Buddy Discord Commands Guide</p>
+        </div>
+        
+        <div class="no-print" style="margin-top: 40px; padding: 20px; background-color: #E3E5E8; border-radius: 8px; text-align: center;">
+            <h3>📄 Save as PDF</h3>
+            <p>To save this guide as a PDF:</p>
+            <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
+                <li>Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>
+                <li>Select "Save as PDF" as the destination</li>
+                <li>Click "Save"</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>
