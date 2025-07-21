@@ -160,6 +160,8 @@ Use these to manually post daily content:
 - `!forcescheduledjapanesegrammar` - Post grammar lesson now
 - `!forcescheduledenglishgrammar` - Post English grammar now
 - `!forcescheduledsmalltalk` - Post small talk practice to all channels
+- `!forcescheduledjapanesetopic` - Post weekly Japanese topic now
+- `!forcescheduledenglishtopic` - Post weekly English topic now
 
 ### Quiz Answers
 - `!revealjapanesequiz` - Show the answer to current Japanese quiz
@@ -171,12 +173,22 @@ Use these to manually post daily content:
 
 Sekai Buddy automatically posts content at these times (Japan Standard Time):
 
+### Daily Content
 | Content | Time (JST) | Time (UTC) |
 |---------|------------|------------|
 | Japanese Quiz | 10:00 AM | 1:00 AM |
 | Japanese Word | 11:00 AM | 2:00 AM |
 | Japanese Grammar | 12:00 PM | 3:00 AM |
 | English Quiz | 1:00 PM | 4:00 AM |
+| English Word | 2:00 PM | 5:00 AM |
+| English Grammar | 3:00 PM | 6:00 AM |
+
+### Weekly Content
+| Content | Day | Time (JST) | Time (UTC) |
+|---------|-----|------------|------------|
+| Small Talk Practice | Sunday | 9:00 AM | 0:00 AM |
+| Japanese Topic | Saturday | 10:00 AM | 1:00 AM |
+| English Topic | Saturday | 11:00 AM | 2:00 AM |
 
 **Note:** The bot posts to specific channels set up by your server admins.
 

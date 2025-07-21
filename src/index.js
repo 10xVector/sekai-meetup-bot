@@ -1146,6 +1146,208 @@ Do not include greetings, lesson titles, or number the sections.`
     }
   }
 
+  if (message.content === '!forcescheduledjapanesetopic') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a Japanese language tutor generating a weekly discussion topic for language learners.
+Each week, select a different cultural, social, or everyday topic that helps learners understand Japanese culture and practice their language skills.
+
+Consider these categories when selecting topics:
+- Japanese festivals and traditions
+- Modern Japanese culture (anime, manga, J-pop, etc.)
+- Japanese food culture and etiquette
+- Work culture and business customs
+- Education system and school life
+- Family and social relationships
+- Technology and innovation in Japan
+- Travel destinations and local specialties
+- Seasonal activities and events
+- Daily life and customs
+- Traditional arts and crafts
+- Sports and recreation
+- Environmental practices
+- Shopping and consumer culture
+- Transportation and city life
+
+Format the response into exactly 5 clearly separated blocks (using \n\n):
+
+📅 Weekly Topic: <Topic name in English and Japanese>
+
+🎯 Topic Overview:
+<Brief introduction to the topic (2-3 sentences) explaining why this topic is interesting and relevant to Japanese learners>
+
+📚 Key Vocabulary:
+• <Word 1> (JP) - <Romaji> - <English>
+• <Word 2> (JP) - <Romaji> - <English>
+• <Word 3> (JP) - <Romaji> - <English>
+• <Word 4> (JP) - <Romaji> - <English>
+• <Word 5> (JP) - <Romaji> - <English>
+
+💬 Useful Phrases:
+• JP: <Phrase 1>
+  Romaji: <Romaji>
+  EN: <English>
+• JP: <Phrase 2>
+  Romaji: <Romaji>
+  EN: <English>
+• JP: <Phrase 3>
+  Romaji: <Romaji>
+  EN: <English>
+
+🤔 Discussion Questions:
+1. <Question 1 in English>
+   <Question 1 in Japanese>
+2. <Question 2 in English>
+   <Question 2 in Japanese>
+3. <Question 3 in English>
+   <Question 3 in Japanese>
+
+Do not include greetings or lesson titles.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a weekly Japanese discussion topic.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the topic text
+      const imageBuffer = await generateCardImage(reply);
+
+      await message.channel.send({ 
+        content: '@everyone 📅 **Weekly Japanese Topic / 今週の日本語トピック**',
+        files: [{ attachment: imageBuffer, name: 'weekly-japanese-topic.png' }] 
+      });
+      
+      // Extract and send audio for the useful phrases
+      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
+      if (phrasesMatch) {
+        const phrasesSection = phrasesMatch[1];
+        const japanesePhrasesMatches = phrasesSection.matchAll(/JP: (.*?)(?=\n)/g);
+        const japanesePhrases = Array.from(japanesePhrasesMatches).map(match => match[1].trim());
+        
+        if (japanesePhrases.length > 0) {
+          const combinedPhrases = japanesePhrases.join('。　');
+          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, false);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-phrases.mp3' });
+          await message.channel.send({ files: [audioAttachment] });
+        }
+      }
+      
+      await message.channel.send("💡 Use these vocabulary and phrases throughout the week! Share your own examples and join the discussion. / 今週はこの単語とフレーズを使ってみましょう！");
+      message.reply('✅ Weekly Japanese topic has been sent!');
+    } catch (err) {
+      console.error('Error generating forced scheduled Japanese topic:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled Japanese topic.');
+    }
+  }
+
+  if (message.content === '!forcescheduledenglishtopic') {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an English language tutor generating a weekly discussion topic for Japanese learners.
+Each week, select a different cultural, social, or everyday topic that helps Japanese learners understand English-speaking cultures and practice their English skills.
+
+Consider these categories when selecting topics:
+- Holidays and traditions in English-speaking countries
+- Modern Western culture (movies, music, social media trends)
+- Food culture and dining etiquette
+- Work culture and business communication
+- Education systems and campus life
+- Family and social relationships
+- Technology and digital culture
+- Travel destinations and tourism
+- Seasonal activities and events
+- Daily life and customs
+- Arts and entertainment
+- Sports and recreation
+- Environmental awareness
+- Shopping and consumer trends
+- Transportation and urban life
+
+Format the response into exactly 5 clearly separated blocks (using \n\n):
+
+📅 Weekly Topic: <Topic name in English>
+(JP: <Topic name in Japanese>)
+
+🎯 Topic Overview:
+<Brief introduction to the topic in Japanese (2-3 sentences) explaining why this topic is interesting and relevant to English learners>
+
+📚 Key Vocabulary:
+• <Word 1> - JP: <Japanese meaning>
+• <Word 2> - JP: <Japanese meaning>
+• <Word 3> - JP: <Japanese meaning>
+• <Word 4> - JP: <Japanese meaning>
+• <Word 5> - JP: <Japanese meaning>
+
+💬 Useful Phrases:
+• EN: <Phrase 1>
+  JP: <Japanese translation>
+• EN: <Phrase 2>
+  JP: <Japanese translation>
+• EN: <Phrase 3>
+  JP: <Japanese translation>
+
+🤔 Discussion Questions:
+1. EN: <Question 1 in English>
+   JP: <Question 1 in Japanese>
+2. EN: <Question 2 in English>
+   JP: <Question 2 in Japanese>
+3. EN: <Question 3 in English>
+   JP: <Question 3 in Japanese>
+
+Do not include greetings or lesson titles.`
+          },
+          {
+            role: 'user',
+            content: 'Give me a weekly English discussion topic for Japanese learners.'
+          }
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // Generate the card image from the topic text
+      const imageBuffer = await generateCardImage(reply);
+
+      await message.channel.send({ 
+        content: '@everyone 📅 **Weekly English Topic / 今週の英語トピック**',
+        files: [{ attachment: imageBuffer, name: 'weekly-english-topic.png' }] 
+      });
+      
+      // Extract and send audio for the useful phrases
+      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
+      if (phrasesMatch) {
+        const phrasesSection = phrasesMatch[1];
+        const englishPhrasesMatches = phrasesSection.matchAll(/EN: (.*?)(?=\n)/g);
+        const englishPhrases = Array.from(englishPhrasesMatches).map(match => match[1].trim());
+        
+        if (englishPhrases.length > 0) {
+          const combinedPhrases = englishPhrases.join('. ');
+          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, true);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-english-phrases.mp3' });
+          await message.channel.send({ files: [audioAttachment] });
+        }
+      }
+      
+      await message.channel.send("💡 今週はこれらの語彙とフレーズを使って練習しましょう！例文を作って共有してください。");
+      message.reply('✅ Weekly English topic has been sent!');
+    } catch (err) {
+      console.error('Error generating forced scheduled English topic:', err);
+      message.reply('Sorry, something went wrong while generating the forced scheduled English topic.');
+    }
+  }
+
   if (message.content === '!forcescheduledenglishquiz') {
     try {
       const quiz = await generateComprehensionQuiz('english');
@@ -1637,4 +1839,504 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
 });
 
 // Scheduled daily English word
+schedule.scheduleJob('0 5 * * *', async () => { // 5:00 AM UTC = 2:00 PM JST
+  try {
+    console.log('Starting scheduled English word...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English language tutor generating a word of the day card for Japanese learners.
+Each time, select a different English word from a wide range of difficulty levels.
+Focus on practical, commonly used vocabulary that Japanese learners might find challenging.
+Avoid repeating words from previous days.
+
+Consider these categories when selecting words:
+- Basic nouns (Beginner)
+- Common verbs (Beginner-Intermediate)
+- Adjectives (Beginner-Intermediate)
+- Adverbs (Beginner-Intermediate)
+- Business vocabulary (Intermediate-Advanced)
+- Academic terms (Intermediate-Advanced)
+- Colloquial expressions (Intermediate)
+- Phrasal verbs (Intermediate)
+- Compound words (Intermediate)
+- Idiomatic expressions (Intermediate-Advanced)
+- Technical terms (Intermediate-Advanced)
+- Slang and casual expressions (Intermediate)
+- Formal expressions (Intermediate-Advanced)
+- Cultural terms (Intermediate)
+- Seasonal vocabulary (Beginner-Intermediate)
+- Emotion-related words (Beginner-Intermediate)
+- Time-related vocabulary (Beginner-Intermediate)
+- Location and direction words (Beginner-Intermediate)
+- Family and relationship terms (Beginner-Intermediate)
+- Prepositional phrases (Intermediate)
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📝 Word:
+EN: <the word in English>
+JP: <Japanese translation>
+Level: <Beginner/Intermediate/Advanced>
+Part of Speech: <noun/verb/adjective/adverb/etc.>
+
+💡 Definition:
+<Keep it brief and clear in Japanese:
+- Primary meaning (1-2 sentences)
+- One common usage example
+- One key difference from similar Japanese words>
+
+🎯 Example:
+EN: <Natural English sentence using the word>
+JP: <Japanese translation>
+
+📌 Notes:
+<Keep it concise in Japanese:
+- One common mistake to avoid
+- One related word or synonym
+- One usage tip>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me an English word of the day for Japanese learners.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the word text
+    const imageBuffer = await generateCardImage(reply);
+
+    // Send to the English word channel
+    const channel = client.channels.cache.get(ENGLISH_WORD_CHANNEL_ID);
+    if (!channel) {
+      console.error('English word channel not found:', ENGLISH_WORD_CHANNEL_ID);
+      return;
+    }
+
+    await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
+
+    // Extract the example sentence and generate audio using English TTS
+    const exampleMatch = reply.match(/🎯 Example:\nEN: (.*?)(?=\n|$)/);
+    if (exampleMatch) {
+      const exampleSentence = exampleMatch[1].trim();
+      const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+      await channel.send({ files: [audioAttachment] });
+    }
+    // Add prompt for users to create their own examples
+    await channel.send("💡 この単語を使って例文を作ってみましょう！チャットで共有してください。");
+    
+    console.log('Scheduled English word completed successfully');
+  } catch (err) {
+    console.error('Error generating scheduled English word:', err);
+    console.error('Error stack:', err.stack);
+  }
+});
+
+// Scheduled daily English grammar
+schedule.scheduleJob('0 6 * * *', async () => { // 6:00 AM UTC = 3:00 PM JST
+  try {
+    console.log('Starting scheduled English grammar...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English language tutor generating a grammar point of the day card for Japanese learners.
+Each time, select a different English grammar point from a wide range of difficulty levels.
+Focus on practical, commonly used grammar patterns that Japanese learners might find challenging.
+Avoid repeating grammar points from previous days.
+
+Consider these categories when selecting grammar points:
+- Basic sentence patterns (Beginner)
+- Verb tenses and forms (Beginner-Intermediate)
+- Prepositions and their uses (Beginner-Intermediate)
+- Conditional forms (Intermediate)
+- Modal verbs (Intermediate)
+- Complex sentence structures (Intermediate-Advanced)
+- Colloquial expressions (Intermediate)
+- Formal and business English (Intermediate-Advanced)
+- Time-related expressions (Beginner-Intermediate)
+- Passive voice (Intermediate)
+- Expressing probability and possibility (Intermediate)
+- Expressing intention and volition (Intermediate)
+- Expressing obligation and necessity (Intermediate)
+- Expressing permission and prohibition (Intermediate)
+- Expressing giving and receiving (Intermediate)
+- Expressing comparison and contrast (Intermediate)
+- Expressing cause and effect (Intermediate)
+- Expressing purpose and reason (Intermediate)
+- Expressing conditions and suppositions (Intermediate)
+- Expressing time and sequence (Intermediate)
+
+Format the response into exactly 4 clearly separated blocks (using \n\n):
+
+📚 Grammar Point:
+EN: <Name of the grammar point in English>
+JP: <Japanese explanation of the grammar point>
+Level: <Beginner/Intermediate/Advanced>
+
+💡 Explanation:
+<Keep it brief and clear in Japanese:
+- Basic usage (1-2 sentences)
+- One key difference from Japanese
+- One common mistake to avoid>
+
+🎯 Examples:
+EN: <Natural English sentence using the grammar point>
+JP: <Japanese translation>
+
+📌 Notes:
+<Keep it concise in Japanese:
+- One usage tip
+- One related grammar point
+- One practice suggestion>
+
+Do not include greetings, lesson titles, or number the sections.`
+        },
+        {
+          role: 'user',
+          content: 'Give me an English grammar point of the day for Japanese learners.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the grammar text
+    const imageBuffer = await generateCardImage(reply);
+
+    // Send to the English grammar channel
+    const channel = client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID);
+    if (!channel) {
+      console.error('English grammar channel not found:', ENGLISH_GRAMMAR_CHANNEL_ID);
+      return;
+    }
+
+    await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+
+    // Extract the example sentence and generate audio
+    const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
+    if (exampleMatch) {
+      const exampleSentence = exampleMatch[1].trim();
+      const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
+      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
+      await channel.send({ files: [audioAttachment] });
+    }
+    // Add prompt for users to create their own examples
+    await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
+    
+    console.log('Scheduled English grammar completed successfully');
+  } catch (err) {
+    console.error('Error generating scheduled English grammar:', err);
+    console.error('Error stack:', err.stack);
+  }
+});
+
+// Weekly small talk (Sundays at 9:00 AM JST)
+schedule.scheduleJob('0 0 * * 0', async () => { // 0:00 AM UTC Sunday = 9:00 AM JST Sunday
+  try {
+    console.log('Starting scheduled weekly small talk...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a language tutor generating a Japanese-English small talk activity with grammar practice.
+
+Create SHORT, SIMPLE questions that fit on a card display. Keep questions under 10 words when possible.
+
+Use varied everyday topics, rotating between:
+- Hobbies (beyond just "sports" - include reading, gaming, cooking, music, art, etc.)
+- Daily routines (morning, work, study habits)
+- Weekend activities
+- Favorite places (cafes, parks, shops)
+- Seasons and weather preferences
+- Food and drinks (specific dishes, not just "do you like food")
+- Technology use
+- Travel and vacations
+- Movies, books, shows
+- Pets and animals
+- Shopping habits
+- Exercise and health
+- Friends and social activities
+- Work or school life
+- Local area and neighborhoods
+
+AVOID: Repetitive "Do you like X?" questions. Mix up question types.
+
+Format the response into exactly 2 clearly separated blocks (using \n\n):
+
+**Today's small talk**
+**EN: <Short English question - max 10 words>  
+JP: <Short natural Japanese question>  
+Romaji: <Romaji version>**
+
+EN: <Simple English sentence with blank>  
+JP: <Simple Japanese sentence with ___ for grammar practice>  
+Romaji: <Romaji with blank>
+
+For grammar practice, vary between:
+- Single particles (は、が、を、に、で、へ、から、まで、と、も、より、の、etc.)
+- Casual grammar patterns (たい、たり、ちゃう/じゃう、てる、たことがある、たほうがいい、なきゃ、etc.)
+- Conjunctions (けど、のに、から、ので、し、etc.)
+- Sentence endings (よね、かな、じゃん、でしょ、だろう、etc.)
+- Common expressions (そうだ、みたい、らしい、はず、かもしれない、etc.)
+
+Keep everything concise, natural, and conversational.`
+        },
+        {
+          role: 'user',
+          content: 'Generate a Japanese-English small talk prompt with an interesting, varied topic. Avoid repetitive themes like basic sports or ice cream.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the smalltalk text
+    const imageBuffer = await generateCardImage(reply);
+
+    // Send to all configured smalltalk channels
+    for (const channelId of SMALLTALK_CHANNEL_IDS) {
+      const channel = client.channels.cache.get(channelId);
+      if (channel) {
+        await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
+      }
+    }
+    
+    console.log('Scheduled weekly small talk completed successfully');
+  } catch (err) {
+    console.error('Error generating scheduled weekly small talk:', err);
+    console.error('Error stack:', err.stack);
+  }
+});
+
+// Weekly Japanese topic (Saturdays at 10:00 AM JST)
+schedule.scheduleJob('0 1 * * 6', async () => { // 1:00 AM UTC Saturday = 10:00 AM JST Saturday
+  try {
+    console.log('Starting scheduled weekly Japanese topic...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a Japanese language tutor generating a weekly discussion topic for language learners.
+Each week, select a different cultural, social, or everyday topic that helps learners understand Japanese culture and practice their language skills.
+
+Consider these categories when selecting topics:
+- Japanese festivals and traditions
+- Modern Japanese culture (anime, manga, J-pop, etc.)
+- Japanese food culture and etiquette
+- Work culture and business customs
+- Education system and school life
+- Family and social relationships
+- Technology and innovation in Japan
+- Travel destinations and local specialties
+- Seasonal activities and events
+- Daily life and customs
+- Traditional arts and crafts
+- Sports and recreation
+- Environmental practices
+- Shopping and consumer culture
+- Transportation and city life
+
+Format the response into exactly 5 clearly separated blocks (using \n\n):
+
+📅 Weekly Topic: <Topic name in English and Japanese>
+
+🎯 Topic Overview:
+<Brief introduction to the topic (2-3 sentences) explaining why this topic is interesting and relevant to Japanese learners>
+
+📚 Key Vocabulary:
+• <Word 1> (JP) - <Romaji> - <English>
+• <Word 2> (JP) - <Romaji> - <English>
+• <Word 3> (JP) - <Romaji> - <English>
+• <Word 4> (JP) - <Romaji> - <English>
+• <Word 5> (JP) - <Romaji> - <English>
+
+💬 Useful Phrases:
+• JP: <Phrase 1>
+  Romaji: <Romaji>
+  EN: <English>
+• JP: <Phrase 2>
+  Romaji: <Romaji>
+  EN: <English>
+• JP: <Phrase 3>
+  Romaji: <Romaji>
+  EN: <English>
+
+🤔 Discussion Questions:
+1. <Question 1 in English>
+   <Question 1 in Japanese>
+2. <Question 2 in English>
+   <Question 2 in Japanese>
+3. <Question 3 in English>
+   <Question 3 in Japanese>
+
+Do not include greetings or lesson titles.`
+        },
+        {
+          role: 'user',
+          content: 'Give me a weekly Japanese discussion topic.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the topic text
+    const imageBuffer = await generateCardImage(reply);
+
+    // Send to the Japanese quiz channel (or create a new JAPANESE_TOPIC_CHANNEL_ID if needed)
+    const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
+    if (channel) {
+      await channel.send({ 
+        content: '@everyone 📅 **Weekly Japanese Topic / 今週の日本語トピック**',
+        files: [{ attachment: imageBuffer, name: 'weekly-japanese-topic.png' }] 
+      });
+      
+      // Extract and send audio for the useful phrases
+      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
+      if (phrasesMatch) {
+        const phrasesSection = phrasesMatch[1];
+        const japanesePhrasesMatches = phrasesSection.matchAll(/JP: (.*?)(?=\n)/g);
+        const japanesePhrases = Array.from(japanesePhrasesMatches).map(match => match[1].trim());
+        
+        if (japanesePhrases.length > 0) {
+          const combinedPhrases = japanesePhrases.join('。　');
+          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, false);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-phrases.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+      }
+      
+      await channel.send("💡 Use these vocabulary and phrases throughout the week! Share your own examples and join the discussion. / 今週はこの単語とフレーズを使ってみましょう！");
+    }
+    
+    console.log('Scheduled weekly Japanese topic completed successfully');
+  } catch (err) {
+    console.error('Error generating scheduled weekly Japanese topic:', err);
+    console.error('Error stack:', err.stack);
+  }
+});
+
+// Weekly English topic (Saturdays at 11:00 AM JST)
+schedule.scheduleJob('0 2 * * 6', async () => { // 2:00 AM UTC Saturday = 11:00 AM JST Saturday
+  try {
+    console.log('Starting scheduled weekly English topic...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an English language tutor generating a weekly discussion topic for Japanese learners.
+Each week, select a different cultural, social, or everyday topic that helps Japanese learners understand English-speaking cultures and practice their English skills.
+
+Consider these categories when selecting topics:
+- Holidays and traditions in English-speaking countries
+- Modern Western culture (movies, music, social media trends)
+- Food culture and dining etiquette
+- Work culture and business communication
+- Education systems and campus life
+- Family and social relationships
+- Technology and digital culture
+- Travel destinations and tourism
+- Seasonal activities and events
+- Daily life and customs
+- Arts and entertainment
+- Sports and recreation
+- Environmental awareness
+- Shopping and consumer trends
+- Transportation and urban life
+
+Format the response into exactly 5 clearly separated blocks (using \n\n):
+
+📅 Weekly Topic: <Topic name in English>
+(JP: <Topic name in Japanese>)
+
+🎯 Topic Overview:
+<Brief introduction to the topic in Japanese (2-3 sentences) explaining why this topic is interesting and relevant to English learners>
+
+📚 Key Vocabulary:
+• <Word 1> - JP: <Japanese meaning>
+• <Word 2> - JP: <Japanese meaning>
+• <Word 3> - JP: <Japanese meaning>
+• <Word 4> - JP: <Japanese meaning>
+• <Word 5> - JP: <Japanese meaning>
+
+💬 Useful Phrases:
+• EN: <Phrase 1>
+  JP: <Japanese translation>
+• EN: <Phrase 2>
+  JP: <Japanese translation>
+• EN: <Phrase 3>
+  JP: <Japanese translation>
+
+🤔 Discussion Questions:
+1. EN: <Question 1 in English>
+   JP: <Question 1 in Japanese>
+2. EN: <Question 2 in English>
+   JP: <Question 2 in Japanese>
+3. EN: <Question 3 in English>
+   JP: <Question 3 in Japanese>
+
+Do not include greetings or lesson titles.`
+        },
+        {
+          role: 'user',
+          content: 'Give me a weekly English discussion topic for Japanese learners.'
+        }
+      ]
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    // Generate the card image from the topic text
+    const imageBuffer = await generateCardImage(reply);
+
+    // Send to the English quiz channel (or create a new ENGLISH_TOPIC_CHANNEL_ID if needed)
+    const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
+    if (channel) {
+      await channel.send({ 
+        content: '@everyone 📅 **Weekly English Topic / 今週の英語トピック**',
+        files: [{ attachment: imageBuffer, name: 'weekly-english-topic.png' }] 
+      });
+      
+      // Extract and send audio for the useful phrases
+      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
+      if (phrasesMatch) {
+        const phrasesSection = phrasesMatch[1];
+        const englishPhrasesMatches = phrasesSection.matchAll(/EN: (.*?)(?=\n)/g);
+        const englishPhrases = Array.from(englishPhrasesMatches).map(match => match[1].trim());
+        
+        if (englishPhrases.length > 0) {
+          const combinedPhrases = englishPhrases.join('. ');
+          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, true);
+          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-english-phrases.mp3' });
+          await channel.send({ files: [audioAttachment] });
+        }
+      }
+      
+      await channel.send("💡 今週はこれらの語彙とフレーズを使って練習しましょう！例文を作って共有してください。");
+    }
+    
+    console.log('Scheduled weekly English topic completed successfully');
+  } catch (err) {
+    console.error('Error generating scheduled weekly English topic:', err);
+    console.error('Error stack:', err.stack);
+  }
+});
+
 client.login(DISCORD_TOKEN);
