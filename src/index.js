@@ -1,12 +1,14 @@
 // index.js
 
-const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, Events } = require('discord.js');
 const { config } = require('dotenv');
 const OpenAI = require('openai');
 const schedule = require('node-schedule');
 const Parser = require('rss-parser');
 const generateCardImage = require('./cardImage');
 const textToSpeech = require('@google-cloud/text-to-speech');
+const https = require('https');
+const { GoogleAuth } = require('google-auth-library');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -66,8 +68,12 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // Placeholder for quiz channel
+// NOTE: All *_CHANNEL_ID env vars support comma-separated lists (e.g. "id1,id2,id3")
 const JAPANESE_QUIZ_CHANNEL_ID = process.env.JAPANESE_QUIZ_CHANNEL_ID;
-const SMALLTALK_CHANNEL_IDS = process.env.SMALLTALK_CHANNEL_IDS?.split(',') || [];
+const SMALLTALK_CHANNEL_IDS = (process.env.SMALLTALK_CHANNEL_IDS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 const JAPANESE_WORD_CHANNEL_ID = process.env.JAPANESE_WORD_CHANNEL_ID;
 const JAPANESE_GRAMMAR_CHANNEL_ID = process.env.JAPANESE_GRAMMAR_CHANNEL_ID;
 
@@ -77,6 +83,15 @@ const ENGLISH_WORD_CHANNEL_ID = process.env.ENGLISH_WORD_CHANNEL_ID;
 const ENGLISH_GRAMMAR_CHANNEL_ID = process.env.ENGLISH_GRAMMAR_CHANNEL_ID;
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
+const googleAuth = new GoogleAuth({
+  scopes: ['https://www.googleapis.com/auth/cloud-platform']
+});
+
+// Gemini-TTS (default enabled, configured here in code per request)
+// Docs: https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#gemini-2-5-pro-tts
+const USE_GEMINI_TTS = true;
+const GOOGLE_TTS_MODEL_NAME = 'gemini-2.5-pro-tts';
+const GOOGLE_TTS_STYLE_PROMPT = 'You are having a casual conversation with a friend. Say the following in a friendly, clear way.';
 
 // Available Japanese voices for rotation
 const JAPANESE_VOICES = [
@@ -144,57 +159,280 @@ const ENGLISH_VOICES = [
   }
 ];
 
+// Gemini-TTS "speaker" names (randomly selected). These names come from Gemini-TTS examples.
+// Note: Gemini-TTS voices differ from Chirp3-HD voices. See docs for the latest voice options.
+const GEMINI_SPEAKERS = [
+  'Kore',
+  'Aoede',
+  'Callirrhoe'
+];
+
 // Emoji reactions for quiz options
 const REACTIONS = ['🇦', '🇧', '🇨', '🇩'];
 
+function parseChannelIdList(value) {
+  if (!value) return [];
+  return String(value)
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+async function fetchChannelsByIds(channelIds) {
+  const channels = [];
+  for (const id of channelIds) {
+    try {
+      const channel = await client.channels.fetch(id);
+      if (channel) channels.push(channel);
+    } catch (e) {
+      // Intentionally ignore fetch failures (invalid ID, missing perms, etc.)
+    }
+  }
+  return channels;
+}
+
+function isGeminiTtsEnabled() {
+  return USE_GEMINI_TTS && GOOGLE_TTS_MODEL_NAME.toLowerCase().startsWith('gemini-');
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickChirpFallbackVoice(languageCode) {
+  if (String(languageCode).toLowerCase().startsWith('ja')) {
+    return pickRandom(JAPANESE_VOICES);
+  }
+  return pickRandom(ENGLISH_VOICES);
+}
+
+async function synthesizeSpeechBuffer({
+  text,
+  languageCode,
+  voiceName,
+  ssmlGender,
+  speakingRate,
+  pitch,
+  audioEncoding = 'MP3',
+  debug = false
+}) {
+  const useGemini = isGeminiTtsEnabled();
+  const geminiLanguageCode = String(languageCode || '').toLowerCase(); // docs examples use e.g. "en-us"
+
+  async function postJson(url, headers, bodyObj) {
+    const body = JSON.stringify(bodyObj);
+    return await new Promise((resolve, reject) => {
+      const req = https.request(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body)
+          }
+        },
+        res => {
+          const chunks = [];
+          res.on('data', d => chunks.push(d));
+          res.on('end', () => {
+            const raw = Buffer.concat(chunks).toString('utf8');
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                resolve(JSON.parse(raw));
+              } catch (e) {
+                reject(new Error(`Gemini REST JSON parse error: ${e.message}`));
+              }
+              return;
+            }
+            reject(new Error(`Gemini REST HTTP ${res.statusCode}: ${raw}`));
+          });
+        }
+      );
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+  }
+
+  const buildRequest = ({ gemini, name, gender }) => ({
+    input: gemini
+      ? { prompt: GOOGLE_TTS_STYLE_PROMPT || 'Say the following.', text }
+      : { text },
+    voice: gemini
+      ? { languageCode: geminiLanguageCode, name, modelName: GOOGLE_TTS_MODEL_NAME }
+      : { languageCode, name, ssmlGender: gender },
+    audioConfig: {
+      audioEncoding,
+      ...(typeof speakingRate === 'number' ? { speakingRate } : {}),
+      ...(typeof pitch === 'number' ? { pitch } : {})
+    }
+  });
+
+  try {
+    let audioBuffer;
+    if (useGemini) {
+      // The current Node client library version may drop unknown protobuf fields like voice.modelName.
+      // To ensure Gemini-TTS fields are sent, use the REST endpoint directly.
+      const token = await googleAuth.getAccessToken();
+      const request = buildRequest({ gemini: true, name: voiceName, gender: ssmlGender });
+      const resJson = await postJson(
+        'https://texttospeech.googleapis.com/v1/text:synthesize',
+        { Authorization: `Bearer ${token}` },
+        request
+      );
+      audioBuffer = Buffer.from(resJson.audioContent, 'base64');
+    } else {
+      const request = buildRequest({ gemini: false, name: voiceName, gender: ssmlGender });
+      const [response] = await ttsClient.synthesizeSpeech(request);
+      audioBuffer = Buffer.isBuffer(response.audioContent)
+        ? response.audioContent
+        : Buffer.from(response.audioContent, 'base64');
+    }
+    if (debug) {
+      return {
+        audioBuffer,
+        meta: {
+          mode: useGemini ? 'gemini' : 'chirp',
+          modelName: useGemini ? GOOGLE_TTS_MODEL_NAME : null,
+          prompt: useGemini ? (GOOGLE_TTS_STYLE_PROMPT || 'Say the following.') : null,
+          languageCode: useGemini ? geminiLanguageCode : languageCode,
+          voiceName: voiceName
+        }
+      };
+    }
+    return audioBuffer;
+  } catch (e) {
+    if (!useGemini) throw e;
+
+    // Fallback to Chirp3-HD if Gemini-TTS rejects a speaker/language combo.
+    const fallback = pickChirpFallbackVoice(languageCode);
+    const fallbackReq = buildRequest({ gemini: false, name: fallback.name, gender: fallback.ssmlGender });
+    const [fallbackRes] = await ttsClient.synthesizeSpeech(fallbackReq);
+    const audioBuffer = Buffer.isBuffer(fallbackRes.audioContent)
+      ? fallbackRes.audioContent
+      : Buffer.from(fallbackRes.audioContent, 'base64');
+    if (debug) {
+      return {
+        audioBuffer,
+        meta: {
+          mode: 'chirp_fallback',
+          modelName: GOOGLE_TTS_MODEL_NAME,
+          prompt: GOOGLE_TTS_STYLE_PROMPT || 'Say the following.',
+          languageCode: geminiLanguageCode,
+          attemptedVoiceName: voiceName,
+          fallbackVoiceName: fallback.name
+          ,
+          errorMessage: e?.message ? String(e.message) : String(e)
+        }
+      };
+    }
+    return audioBuffer;
+  }
+}
+
 async function getTTSBuffer(text) {
-  // Randomly select a voice once per function call
-  const selectedVoice = JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
+  if (isGeminiTtsEnabled()) {
+    const speaker = pickRandom(GEMINI_SPEAKERS);
+    return getTTSBufferWithVoice(text, { name: speaker, speakingRate: 1.0, pitch: 0, ssmlGender: 'NEUTRAL' });
+  }
+
+  // Chirp3-HD fallback
+  const selectedVoice = pickRandom(JAPANESE_VOICES);
   return getTTSBufferWithVoice(text, selectedVoice);
 }
 
 // Helper function to generate TTS with a specific voice
 async function getTTSBufferWithVoice(text, voice) {
-  const [response] = await ttsClient.synthesizeSpeech({
-    input: { text },
-    voice: { 
-      languageCode: 'ja-JP',
-      name: voice.name,
-      ssmlGender: voice.ssmlGender
-    },
-    audioConfig: { 
-      audioEncoding: 'MP3',
-      speakingRate: voice.speakingRate,
-      pitch: voice.pitch
-    },
+  return await synthesizeSpeechBuffer({
+    text,
+    languageCode: 'ja-JP',
+    voiceName: voice.name,
+    ssmlGender: voice.ssmlGender,
+    speakingRate: voice.speakingRate,
+    pitch: voice.pitch,
+    audioEncoding: 'MP3'
   });
-  return Buffer.from(response.audioContent, 'binary');
 }
 
 async function getEnglishTTSBuffer(text) {
-  // Randomly select a voice once per function call
-  const selectedVoice = ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)];
+  if (isGeminiTtsEnabled()) {
+    const speaker = pickRandom(GEMINI_SPEAKERS);
+    return getEnglishTTSBufferWithVoice(text, { name: speaker, ssmlGender: 'NEUTRAL' });
+  }
+
+  // Chirp3-HD fallback
+  const selectedVoice = pickRandom(ENGLISH_VOICES);
   return getEnglishTTSBufferWithVoice(text, selectedVoice);
 }
 
 // Helper function to generate English TTS with a specific voice
 async function getEnglishTTSBufferWithVoice(text, voice) {
-  const request = {
-    input: { text },
-    voice: { 
-      languageCode: 'en-US',
-      name: voice.name,
-      ssmlGender: voice.ssmlGender
-    },
-    audioConfig: { 
-      audioEncoding: 'MP3',
-      speakingRate: 1.0,
-      pitch: 0.0
-    },
-  };
+  return await synthesizeSpeechBuffer({
+    text,
+    languageCode: 'en-US',
+    voiceName: voice.name,
+    ssmlGender: voice.ssmlGender,
+    speakingRate: 1.0,
+    pitch: 0.0,
+    audioEncoding: 'MP3'
+  });
+}
 
-  const [response] = await ttsClient.synthesizeSpeech(request);
-  return response.audioContent;
+async function getTTSBufferDebug(text) {
+  if (isGeminiTtsEnabled()) {
+    const speaker = pickRandom(GEMINI_SPEAKERS);
+    return await synthesizeSpeechBuffer({
+      text,
+      languageCode: 'ja-JP',
+      voiceName: speaker,
+      ssmlGender: 'NEUTRAL',
+      speakingRate: 1.0,
+      pitch: 0.0,
+      audioEncoding: 'MP3',
+      debug: true
+    });
+  }
+
+  const voice = pickRandom(JAPANESE_VOICES);
+  return await synthesizeSpeechBuffer({
+    text,
+    languageCode: 'ja-JP',
+    voiceName: voice.name,
+    ssmlGender: voice.ssmlGender,
+    speakingRate: voice.speakingRate,
+    pitch: voice.pitch,
+    audioEncoding: 'MP3',
+    debug: true
+  });
+}
+
+async function getEnglishTTSBufferDebug(text) {
+  if (isGeminiTtsEnabled()) {
+    const speaker = pickRandom(GEMINI_SPEAKERS);
+    return await synthesizeSpeechBuffer({
+      text,
+      languageCode: 'en-US',
+      voiceName: speaker,
+      ssmlGender: 'NEUTRAL',
+      speakingRate: 1.0,
+      pitch: 0.0,
+      audioEncoding: 'MP3',
+      debug: true
+    });
+  }
+
+  const voice = pickRandom(ENGLISH_VOICES);
+  return await synthesizeSpeechBuffer({
+    text,
+    languageCode: 'en-US',
+    voiceName: voice.name,
+    ssmlGender: voice.ssmlGender,
+    speakingRate: 1.0,
+    pitch: 0.0,
+    audioEncoding: 'MP3',
+    debug: true
+  });
 }
 
 // Helper function to split text into chunks for TTS
@@ -324,12 +562,69 @@ async function fetchMeetupEventDetails(meetupLink) {
   }
 }
 
-client.once('ready', () => {
+client.once(Events.ClientReady, () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-client.on('messageCreate', async message => {
+client.on(Events.MessageCreate, async message => {
   if (message.author.bot) return;
+
+  // Voice testing helpers
+  // - !voicetest -> sends one English + one Japanese MP3 sample
+  // - !tts <en|ja> <text> -> synthesizes the provided text
+  if (message.content === '!voicetest') {
+    try {
+      const enText = 'Hello! This is a voice test for Sekai Buddy.';
+      const jaText = 'こんにちは！これはセカイバディの音声テストです。';
+
+      const enResult = await getEnglishTTSBufferDebug(enText);
+      const jaResult = await getTTSBufferDebug(jaText);
+
+      const enAttachment = new AttachmentBuilder(enResult.audioBuffer, { name: 'voice-test-en.mp3' });
+      const jaAttachment = new AttachmentBuilder(jaResult.audioBuffer, { name: 'voice-test-ja.mp3' });
+
+      await message.reply({
+        content:
+          `🎧 Voice test\n` +
+          `EN: ${enResult.meta.mode}${enResult.meta.modelName ? ` (${enResult.meta.modelName})` : ''} voice=${enResult.meta.voiceName || enResult.meta.fallbackVoiceName || 'unknown'}\n` +
+          `JA: ${jaResult.meta.mode}${jaResult.meta.modelName ? ` (${jaResult.meta.modelName})` : ''} voice=${jaResult.meta.voiceName || jaResult.meta.fallbackVoiceName || 'unknown'}\n` +
+          (enResult.meta.mode === 'chirp_fallback' || jaResult.meta.mode === 'chirp_fallback'
+            ? `⚠️ Fallback happened.\nGemini error: ${(enResult.meta.errorMessage || jaResult.meta.errorMessage || '').slice(0, 180)}`
+            : `✅ No fallback detected.`),
+        files: [enAttachment, jaAttachment]
+      });
+    } catch (err) {
+      console.error('Error running !voicetest:', err);
+      await message.reply('Sorry — voice test failed. Check bot logs for the exact TTS error.');
+    }
+  }
+
+  if (message.content.startsWith('!tts ')) {
+    try {
+      const parts = message.content.split(' ');
+      const lang = (parts[1] || '').toLowerCase();
+      const text = parts.slice(2).join(' ').trim();
+
+      if (!text) {
+        return message.reply('Usage: `!tts en Hello world` or `!tts ja こんにちは`');
+      }
+
+      const result = lang === 'ja' ? await getTTSBufferDebug(text) : await getEnglishTTSBufferDebug(text);
+      const attachment = new AttachmentBuilder(result.audioBuffer, { name: `tts-${lang === 'ja' ? 'ja' : 'en'}.mp3` });
+      await message.reply({
+        content:
+          `TTS: ${result.meta.mode}${result.meta.modelName ? ` (${result.meta.modelName})` : ''} ` +
+          `voice=${result.meta.voiceName || result.meta.fallbackVoiceName || 'unknown'}` +
+          (result.meta.mode === 'chirp_fallback' && result.meta.errorMessage
+            ? `\nGemini error: ${String(result.meta.errorMessage).slice(0, 180)}`
+            : ``),
+        files: [attachment]
+      });
+    } catch (err) {
+      console.error('Error running !tts:', err);
+      await message.reply('Sorry — TTS failed. Check bot logs for the exact error.');
+    }
+  }
 
   if (message.content === '!smalltalk') {
     try {
@@ -1571,13 +1866,13 @@ async function sendQuiz(quiz, channel, isEnglish = false) {
         await getTTSBufferForLongText(question, false);
       const audioAttachment = new AttachmentBuilder(audioBuffer, { name: `${isEnglish ? 'english-' : ''}quiz-audio.mp3` });
       await channel.send({
-        content: `@everyone **Daily ${isEnglish ? 'English ' : ''}Quiz**\n${question}`,
+        content: `@everyone **Weekly ${isEnglish ? 'English ' : ''}Quiz**\n${question}`,
         files: [audioAttachment]
       });
     } catch (ttsError) {
       console.error('TTS error, sending without audio:', ttsError);
       await channel.send({
-        content: `@everyone **Daily ${isEnglish ? 'English ' : ''}Quiz**\n${question}`
+        content: `@everyone **Weekly ${isEnglish ? 'English ' : ''}Quiz**\n${question}`
       });
     }
 
@@ -1663,23 +1958,26 @@ async function revealPreviousQuizAnswer(quizType) {
   }
 }
 
-// Scheduled daily quiz
-schedule.scheduleJob('0 1 * * *', async () => { // 1:00 AM UTC = 10:00 AM JST
+// Scheduled weekly quiz (Fridays at 10:00 AM JST)
+schedule.scheduleJob('0 1 * * 5', async () => { // 1:00 AM UTC Friday = 10:00 AM JST Friday
   try {
     const quiz = await generateComprehensionQuiz('japanese');
-    const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
-    if (!channel) {
-      console.error('Quiz channel not found:', JAPANESE_QUIZ_CHANNEL_ID);
+    const channelIds = parseChannelIdList(JAPANESE_QUIZ_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length === 0) {
+      console.error('Japanese quiz channel(s) not found:', channelIds);
       return;
     }
-    await sendQuiz(quiz, channel, false);
+    for (const channel of channels) {
+      await sendQuiz(quiz, channel, false);
+    }
   } catch (err) {
     console.error('Error generating scheduled quiz:', err);
   }
 });
 
-// Scheduled daily word
-schedule.scheduleJob('0 2 * * *', async () => { // 2:00 AM UTC = 11:00 AM JST
+// Scheduled weekly Japanese word (Fridays at 11:00 AM JST)
+schedule.scheduleJob('0 2 * * 5', async () => { // 2:00 AM UTC Friday = 11:00 AM JST Friday
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -1722,32 +2020,34 @@ Do not include greetings, lesson titles, or number the sections.`
     // Generate the card image from the word text
     const imageBuffer = await generateCardImage(reply);
 
-    // Send to the word channel
-    const channel = client.channels.cache.get(JAPANESE_WORD_CHANNEL_ID);
-    if (!channel) {
-      console.error('Word channel not found:', JAPANESE_WORD_CHANNEL_ID);
+    // Send to all configured word channels
+    const channelIds = parseChannelIdList(JAPANESE_WORD_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length === 0) {
+      console.error('Japanese word channel(s) not found:', channelIds);
       return;
     }
 
-    await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
-
-    // Extract the example sentence and generate audio
+    // Extract the example sentence once (audio is the same for all channels)
     const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
-    if (exampleMatch) {
-      const exampleSentence = exampleMatch[1].trim();
-      const audioBuffer = await getTTSBuffer(exampleSentence);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-      await channel.send({ files: [audioAttachment] });
+    const exampleSentence = exampleMatch ? exampleMatch[1].trim() : null;
+    const audioBuffer = exampleSentence ? await getTTSBuffer(exampleSentence) : null;
+    const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' }) : null;
+
+    for (const channel of channels) {
+      await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+      if (audioAttachment) {
+        await channel.send({ files: [audioAttachment] });
+      }
+      await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
     }
-    // Add prompt for users to create their own examples
-    await channel.send("💡 Try creating your own example sentence using this word! Feel free to share it in the chat.");
   } catch (err) {
     console.error('Error generating scheduled word:', err);
   }
 });
 
-// Scheduled daily grammar
-schedule.scheduleJob('0 3 * * *', async () => { // 3:00 AM UTC = 12:00 PM JST
+// Scheduled weekly Japanese grammar (Fridays at 12:00 PM JST)
+schedule.scheduleJob('0 3 * * 5', async () => { // 3:00 AM UTC Friday = 12:00 PM JST Friday
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -1788,34 +2088,36 @@ Do not include greetings, lesson titles, or number the sections.`
     // Generate the card image from the grammar text
     const imageBuffer = await generateCardImage(reply);
 
-    // Send to the grammar channel
-    const channel = client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID);
-    if (!channel) {
-      console.error('Grammar channel not found:', JAPANESE_GRAMMAR_CHANNEL_ID);
+    // Send to all configured grammar channels
+    const channelIds = parseChannelIdList(JAPANESE_GRAMMAR_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length === 0) {
+      console.error('Japanese grammar channel(s) not found:', channelIds);
       return;
     }
 
-    await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
-
-    // Extract the example sentence and generate audio
+    // Extract the example sentence once (audio is the same for all channels)
     const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
-    if (exampleMatch) {
-      const exampleSentence = exampleMatch[1].trim();
-      const audioBuffer = await getTTSBuffer(exampleSentence);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
-      await channel.send({ files: [audioAttachment] });
+    const exampleSentence = exampleMatch ? exampleMatch[1].trim() : null;
+    const audioBuffer = exampleSentence ? await getTTSBuffer(exampleSentence) : null;
+    const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' }) : null;
+
+    for (const channel of channels) {
+      await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+      if (audioAttachment) {
+        await channel.send({ files: [audioAttachment] });
+      }
+      await channel.send("💡 Try creating your own example sentence using this grammar point! Feel free to share it in the chat.");
     }
-    // Add prompt for users to create their own examples
-    await channel.send("💡 Try creating your own example sentence using this grammar point! Feel free to share it in the chat.");
   } catch (err) {
     console.error('Error generating scheduled grammar:', err);
   }
 });
 
 // Add new scheduled job for English quiz
-schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
+schedule.scheduleJob('0 4 * * 5', async () => { // 4:00 AM UTC Friday = 1:00 PM JST Friday
   try {
-    console.log('Starting scheduled English quiz...');
+    console.log('Starting scheduled weekly English quiz...');
     
     const quiz = await generateComprehensionQuiz('english');
     
@@ -1824,24 +2126,27 @@ schedule.scheduleJob('0 4 * * *', async () => { // 4:00 AM UTC = 1:00 PM JST
       return;
     }
     
-    const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
-    if (!channel) {
-      console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
+    const channelIds = parseChannelIdList(ENGLISH_QUIZ_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length === 0) {
+      console.error('English quiz channel(s) not found:', channelIds);
       return;
     }
     
-    await sendQuiz(quiz, channel, true);
-    console.log('Scheduled English quiz completed successfully');
+    for (const channel of channels) {
+      await sendQuiz(quiz, channel, true);
+    }
+    console.log('Scheduled weekly English quiz completed successfully');
   } catch (err) {
     console.error('Error generating scheduled English quiz:', err);
     console.error('Error stack:', err.stack);
   }
 });
 
-// Scheduled daily English word
-schedule.scheduleJob('0 5 * * *', async () => { // 5:00 AM UTC = 2:00 PM JST
+// Scheduled weekly English word (Fridays at 2:00 PM JST)
+schedule.scheduleJob('0 5 * * 5', async () => { // 5:00 AM UTC Friday = 2:00 PM JST Friday
   try {
-    console.log('Starting scheduled English word...');
+    console.log('Starting scheduled weekly English word...');
     
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -1913,37 +2218,39 @@ Do not include greetings, lesson titles, or number the sections.`
     // Generate the card image from the word text
     const imageBuffer = await generateCardImage(reply);
 
-    // Send to the English word channel
-    const channel = client.channels.cache.get(ENGLISH_WORD_CHANNEL_ID);
-    if (!channel) {
-      console.error('English word channel not found:', ENGLISH_WORD_CHANNEL_ID);
+    // Send to all configured English word channels
+    const channelIds = parseChannelIdList(ENGLISH_WORD_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length === 0) {
+      console.error('English word channel(s) not found:', channelIds);
       return;
     }
 
-    await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
-
-    // Extract the example sentence and generate audio using English TTS
+    // Extract the example sentence once (audio is the same for all channels)
     const exampleMatch = reply.match(/🎯 Example:\nEN: (.*?)(?=\n|$)/);
-    if (exampleMatch) {
-      const exampleSentence = exampleMatch[1].trim();
-      const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
-      await channel.send({ files: [audioAttachment] });
+    const exampleSentence = exampleMatch ? exampleMatch[1].trim() : null;
+    const audioBuffer = exampleSentence ? await getEnglishTTSBuffer(exampleSentence) : null;
+    const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' }) : null;
+
+    for (const channel of channels) {
+      await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
+      if (audioAttachment) {
+        await channel.send({ files: [audioAttachment] });
+      }
+      await channel.send("💡 この単語を使って例文を作ってみましょう！チャットで共有してください。");
     }
-    // Add prompt for users to create their own examples
-    await channel.send("💡 この単語を使って例文を作ってみましょう！チャットで共有してください。");
     
-    console.log('Scheduled English word completed successfully');
+    console.log('Scheduled weekly English word completed successfully');
   } catch (err) {
     console.error('Error generating scheduled English word:', err);
     console.error('Error stack:', err.stack);
   }
 });
 
-// Scheduled daily English grammar
-schedule.scheduleJob('0 6 * * *', async () => { // 6:00 AM UTC = 3:00 PM JST
+// Scheduled weekly English grammar (Fridays at 3:00 PM JST)
+schedule.scheduleJob('0 6 * * 5', async () => { // 6:00 AM UTC Friday = 3:00 PM JST Friday
   try {
-    console.log('Starting scheduled English grammar...');
+    console.log('Starting scheduled weekly English grammar...');
     
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -2014,35 +2321,37 @@ Do not include greetings, lesson titles, or number the sections.`
     // Generate the card image from the grammar text
     const imageBuffer = await generateCardImage(reply);
 
-    // Send to the English grammar channel
-    const channel = client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID);
-    if (!channel) {
-      console.error('English grammar channel not found:', ENGLISH_GRAMMAR_CHANNEL_ID);
+    // Send to all configured English grammar channels
+    const channelIds = parseChannelIdList(ENGLISH_GRAMMAR_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length === 0) {
+      console.error('English grammar channel(s) not found:', channelIds);
       return;
     }
 
-    await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
-
-    // Extract the example sentence and generate audio
+    // Extract the example sentence once (audio is the same for all channels)
     const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
-    if (exampleMatch) {
-      const exampleSentence = exampleMatch[1].trim();
-      const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
-      const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' });
-      await channel.send({ files: [audioAttachment] });
+    const exampleSentence = exampleMatch ? exampleMatch[1].trim() : null;
+    const audioBuffer = exampleSentence ? await getEnglishTTSBuffer(exampleSentence) : null;
+    const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' }) : null;
+
+    for (const channel of channels) {
+      await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+      if (audioAttachment) {
+        await channel.send({ files: [audioAttachment] });
+      }
+      await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
     }
-    // Add prompt for users to create their own examples
-    await channel.send("💡 Try creating your own example using this grammar point! Feel free to share it in the chat.");
     
-    console.log('Scheduled English grammar completed successfully');
+    console.log('Scheduled weekly English grammar completed successfully');
   } catch (err) {
     console.error('Error generating scheduled English grammar:', err);
     console.error('Error stack:', err.stack);
   }
 });
 
-// Weekly small talk (Sundays at 9:00 AM JST)
-schedule.scheduleJob('0 0 * * 0', async () => { // 0:00 AM UTC Sunday = 9:00 AM JST Sunday
+// Weekly small talk (Fridays at 9:00 PM JST)
+schedule.scheduleJob('0 12 * * 5', async () => { // 12:00 PM UTC Friday = 9:00 PM JST Friday
   try {
     console.log('Starting scheduled weekly small talk...');
     
@@ -2108,7 +2417,7 @@ Keep everything concise, natural, and conversational.`
 
     // Send to all configured smalltalk channels
     for (const channelId of SMALLTALK_CHANNEL_IDS) {
-      const channel = client.channels.cache.get(channelId);
+      const channel = await client.channels.fetch(channelId).catch(() => null);
       if (channel) {
         await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
       }
@@ -2121,8 +2430,8 @@ Keep everything concise, natural, and conversational.`
   }
 });
 
-// Weekly Japanese topic (Saturdays at 10:00 AM JST)
-schedule.scheduleJob('0 1 * * 6', async () => { // 1:00 AM UTC Saturday = 10:00 AM JST Saturday
+// Weekly Japanese topic (Fridays at 7:00 PM JST)
+schedule.scheduleJob('0 10 * * 5', async () => { // 10:00 AM UTC Friday = 7:00 PM JST Friday
   try {
     console.log('Starting scheduled weekly Japanese topic...');
     
@@ -2198,13 +2507,16 @@ Do not include greetings or lesson titles.`
     // Generate the card image from the topic text
     const imageBuffer = await generateCardImage(reply);
 
-    // Send to the Japanese quiz channel (or create a new JAPANESE_TOPIC_CHANNEL_ID if needed)
-    const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
-    if (channel) {
-      await channel.send({ 
-        content: '@everyone 📅 **Weekly Japanese Topic / 今週の日本語トピック**',
-        files: [{ attachment: imageBuffer, name: 'weekly-japanese-topic.png' }] 
-      });
+    // Send to all configured Japanese quiz channels (or create a new JAPANESE_TOPIC_CHANNEL_ID if needed)
+    const channelIds = parseChannelIdList(JAPANESE_QUIZ_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length > 0) {
+      for (const channel of channels) {
+        await channel.send({ 
+          content: '@everyone 📅 **Weekly Japanese Topic / 今週の日本語トピック**',
+          files: [{ attachment: imageBuffer, name: 'weekly-japanese-topic.png' }] 
+        });
+      }
       
       // Extract and send audio for the useful phrases
       const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
@@ -2217,11 +2529,15 @@ Do not include greetings or lesson titles.`
           const combinedPhrases = japanesePhrases.join('。　');
           const audioBuffer = await getTTSBufferForLongText(combinedPhrases, false);
           const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-phrases.mp3' });
-          await channel.send({ files: [audioAttachment] });
+          for (const channel of channels) {
+            await channel.send({ files: [audioAttachment] });
+          }
         }
       }
       
-      await channel.send("💡 Use these vocabulary and phrases throughout the week! Share your own examples and join the discussion. / 今週はこの単語とフレーズを使ってみましょう！");
+      for (const channel of channels) {
+        await channel.send("💡 Use these vocabulary and phrases throughout the week! Share your own examples and join the discussion. / 今週はこの単語とフレーズを使ってみましょう！");
+      }
     }
     
     console.log('Scheduled weekly Japanese topic completed successfully');
@@ -2231,8 +2547,8 @@ Do not include greetings or lesson titles.`
   }
 });
 
-// Weekly English topic (Saturdays at 11:00 AM JST)
-schedule.scheduleJob('0 2 * * 6', async () => { // 2:00 AM UTC Saturday = 11:00 AM JST Saturday
+// Weekly English topic (Fridays at 8:00 PM JST)
+schedule.scheduleJob('0 11 * * 5', async () => { // 11:00 AM UTC Friday = 8:00 PM JST Friday
   try {
     console.log('Starting scheduled weekly English topic...');
     
@@ -2306,13 +2622,16 @@ Do not include greetings or lesson titles.`
     // Generate the card image from the topic text
     const imageBuffer = await generateCardImage(reply);
 
-    // Send to the English quiz channel (or create a new ENGLISH_TOPIC_CHANNEL_ID if needed)
-    const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
-    if (channel) {
-      await channel.send({ 
-        content: '@everyone 📅 **Weekly English Topic / 今週の英語トピック**',
-        files: [{ attachment: imageBuffer, name: 'weekly-english-topic.png' }] 
-      });
+    // Send to all configured English quiz channels (or create a new ENGLISH_TOPIC_CHANNEL_ID if needed)
+    const channelIds = parseChannelIdList(ENGLISH_QUIZ_CHANNEL_ID);
+    const channels = await fetchChannelsByIds(channelIds);
+    if (channels.length > 0) {
+      for (const channel of channels) {
+        await channel.send({ 
+          content: '@everyone 📅 **Weekly English Topic / 今週の英語トピック**',
+          files: [{ attachment: imageBuffer, name: 'weekly-english-topic.png' }] 
+        });
+      }
       
       // Extract and send audio for the useful phrases
       const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
@@ -2325,11 +2644,15 @@ Do not include greetings or lesson titles.`
           const combinedPhrases = englishPhrases.join('. ');
           const audioBuffer = await getTTSBufferForLongText(combinedPhrases, true);
           const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-english-phrases.mp3' });
-          await channel.send({ files: [audioAttachment] });
+          for (const channel of channels) {
+            await channel.send({ files: [audioAttachment] });
+          }
         }
       }
       
-      await channel.send("💡 今週はこれらの語彙とフレーズを使って練習しましょう！例文を作って共有してください。");
+      for (const channel of channels) {
+        await channel.send("💡 今週はこれらの語彙とフレーズを使って練習しましょう！例文を作って共有してください。");
+      }
     }
     
     console.log('Scheduled weekly English topic completed successfully');

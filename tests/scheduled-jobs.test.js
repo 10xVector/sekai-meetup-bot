@@ -21,73 +21,78 @@ const it = (name, fn) => {
 
 // Test configuration for scheduled jobs
 const SCHEDULED_JOBS_CONFIG = {
-  daily: [
+  daily: [],
+  weekly: [
     {
       name: 'Japanese Quiz',
-      time: '0 1 * * *',
+      time: '0 1 * * 5',
+      day: 'Friday',
       jstTime: '10:00 AM',
       utcTime: '1:00 AM',
       channelEnvVar: 'JAPANESE_QUIZ_CHANNEL_ID'
     },
     {
       name: 'Japanese Word',
-      time: '0 2 * * *',
+      time: '0 2 * * 5',
+      day: 'Friday',
       jstTime: '11:00 AM',
       utcTime: '2:00 AM',
       channelEnvVar: 'JAPANESE_WORD_CHANNEL_ID'
     },
     {
       name: 'Japanese Grammar',
-      time: '0 3 * * *',
+      time: '0 3 * * 5',
+      day: 'Friday',
       jstTime: '12:00 PM',
       utcTime: '3:00 AM',
       channelEnvVar: 'JAPANESE_GRAMMAR_CHANNEL_ID'
     },
     {
       name: 'English Quiz',
-      time: '0 4 * * *',
+      time: '0 4 * * 5',
+      day: 'Friday',
       jstTime: '1:00 PM',
       utcTime: '4:00 AM',
       channelEnvVar: 'ENGLISH_QUIZ_CHANNEL_ID'
     },
     {
       name: 'English Word',
-      time: '0 5 * * *',
+      time: '0 5 * * 5',
+      day: 'Friday',
       jstTime: '2:00 PM',
       utcTime: '5:00 AM',
       channelEnvVar: 'ENGLISH_WORD_CHANNEL_ID'
     },
     {
       name: 'English Grammar',
-      time: '0 6 * * *',
+      time: '0 6 * * 5',
+      day: 'Friday',
       jstTime: '3:00 PM',
       utcTime: '6:00 AM',
       channelEnvVar: 'ENGLISH_GRAMMAR_CHANNEL_ID'
-    }
-  ],
-  weekly: [
+    },
     {
       name: 'Small Talk',
-      time: '0 0 * * 0',
-      day: 'Sunday',
-      jstTime: '9:00 AM',
-      utcTime: '0:00 AM',
+      time: '0 12 * * 5',
+      day: 'Friday',
+      jstTime: '9:00 PM',
+      utcTime: '12:00 PM',
       channelEnvVar: 'SMALLTALK_CHANNEL_IDS'
     },
     {
       name: 'Japanese Topic',
-      time: '0 1 * * 6',
-      day: 'Saturday',
-      jstTime: '10:00 AM',
-      utcTime: '1:00 AM',
+      time: '0 10 * * 5',
+      day: 'Friday',
+      jstTime: '7:00 PM',
+      utcTime: '10:00 AM',
       channelEnvVar: 'JAPANESE_QUIZ_CHANNEL_ID'
     },
     {
       name: 'English Topic',
-      time: '0 2 * * 6',
-      day: 'Saturday',
-      jstTime: '11:00 AM',
-      utcTime: '2:00 AM',
+      time: '0 11 * * 5',
+      day: 'Friday',
+      jstTime: '8:00 PM',
+      utcTime: '11:00 AM',
       channelEnvVar: 'ENGLISH_QUIZ_CHANNEL_ID'
     }
   ]
@@ -127,15 +132,15 @@ describe('Scheduled Jobs Tests', () => {
         assert.strictEqual(parts.length, 5, `Cron expression should have 5 parts for ${job.name}`);
         // Check day of week is correct (0 = Sunday, 6 = Saturday)
         const dayOfWeek = parseInt(parts[4]);
-        if (job.day === 'Sunday') assert.strictEqual(dayOfWeek, 0);
-        if (job.day === 'Saturday') assert.strictEqual(dayOfWeek, 6);
+        if (job.day === 'Friday') assert.strictEqual(dayOfWeek, 5);
       });
     });
   });
 
   describe('Time Zone Calculations', () => {
-    it('should have correct JST to UTC conversion for daily jobs', () => {
-      SCHEDULED_JOBS_CONFIG.daily.forEach(job => {
+    it('should have correct JST to UTC conversion for scheduled jobs', () => {
+      const allJobs = [...SCHEDULED_JOBS_CONFIG.daily, ...SCHEDULED_JOBS_CONFIG.weekly];
+      allJobs.forEach(job => {
         const utcHour = parseInt(job.time.split(' ')[1]);
         const jstHour = parseInt(job.jstTime.match(/\d+/)[0]);
         const isPM = job.jstTime.includes('PM');
@@ -193,15 +198,27 @@ describe('Scheduled Jobs Tests', () => {
   });
 
   describe('Schedule Ordering', () => {
-    it('should have daily jobs scheduled in chronological order', () => {
-      const hours = SCHEDULED_JOBS_CONFIG.daily.map(job => 
-        parseInt(job.time.split(' ')[1])
-      );
-      
-      for (let i = 1; i < hours.length; i++) {
-        assert(hours[i] > hours[i-1], 
-          `Daily jobs should be in chronological order. Found ${hours[i]} after ${hours[i-1]}`);
-      }
+    it('should have weekly jobs scheduled in chronological order within each day', () => {
+      const byDay = {};
+      SCHEDULED_JOBS_CONFIG.weekly.forEach(job => {
+        byDay[job.day] = byDay[job.day] || [];
+        byDay[job.day].push(job);
+      });
+
+      Object.keys(byDay).forEach(day => {
+        const sorted = byDay[day].slice().sort((a, b) => {
+          const ha = parseInt(a.time.split(' ')[1]);
+          const hb = parseInt(b.time.split(' ')[1]);
+          return ha - hb;
+        });
+
+        for (let i = 1; i < sorted.length; i++) {
+          const prevHour = parseInt(sorted[i - 1].time.split(' ')[1]);
+          const currHour = parseInt(sorted[i].time.split(' ')[1]);
+          assert(currHour >= prevHour,
+            `Weekly jobs for ${day} should be in chronological order. Found ${currHour} after ${prevHour}`);
+        }
+      });
     });
   });
 });

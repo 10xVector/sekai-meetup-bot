@@ -152,9 +152,9 @@ Bot: ✅ Reminder set!
 These commands are for moderators and admins to manually trigger scheduled content.
 
 ### Force Commands
-Use these to manually post daily content:
-- `!forcescheduledjapanesequiz` - Post the daily Japanese quiz now
-- `!forcescheduledenglishquiz` - Post the daily English quiz now
+Use these to manually post scheduled content:
+- `!forcescheduledjapanesequiz` - Post the (weekly) Japanese quiz now
+- `!forcescheduledenglishquiz` - Post the (weekly) English quiz now
 - `!forcescheduledjapaneseword` - Post word of the day now
 - `!forcescheduledenglishword` - Post English word now
 - `!forcescheduledjapanesegrammar` - Post grammar lesson now
@@ -171,26 +171,22 @@ Use these to manually post daily content:
 
 ## Scheduled Content
 
-Sekai Buddy automatically posts content at these times (Japan Standard Time):
-
-### Daily Content
-| Content | Time (JST) | Time (UTC) |
-|---------|------------|------------|
-| Japanese Quiz | 10:00 AM | 1:00 AM |
-| Japanese Word | 11:00 AM | 2:00 AM |
-| Japanese Grammar | 12:00 PM | 3:00 AM |
-| English Quiz | 1:00 PM | 4:00 AM |
-| English Word | 2:00 PM | 5:00 AM |
-| English Grammar | 3:00 PM | 6:00 AM |
+Sekai Buddy automatically posts content weekly at these times (Japan Standard Time):
 
 ### Weekly Content
 | Content | Day | Time (JST) | Time (UTC) |
 |---------|-----|------------|------------|
-| Small Talk Practice | Sunday | 9:00 AM | 0:00 AM |
-| Japanese Topic | Saturday | 10:00 AM | 1:00 AM |
-| English Topic | Saturday | 11:00 AM | 2:00 AM |
+| Japanese Quiz | Friday | 10:00 AM | 1:00 AM |
+| Japanese Word | Friday | 11:00 AM | 2:00 AM |
+| Japanese Grammar | Friday | 12:00 PM | 3:00 AM |
+| English Quiz | Friday | 1:00 PM | 4:00 AM |
+| English Word | Friday | 2:00 PM | 5:00 AM |
+| English Grammar | Friday | 3:00 PM | 6:00 AM |
+| Japanese Topic | Friday | 7:00 PM | 10:00 AM |
+| English Topic | Friday | 8:00 PM | 11:00 AM |
+| Small Talk Practice | Friday | 9:00 PM | 12:00 PM |
 
-**Note:** The bot posts to specific channels set up by your server admins.
+**Note:** For scheduled posts, each `*_CHANNEL_ID` setting can be a comma-separated list to post to multiple channels.
 
 ---
 
@@ -208,11 +204,9 @@ Commands create beautiful visual cards that are easy to read and share. Perfect 
 - Can't wait? Admins can use `!revealjapanesequiz` or `!revealenglishquiz`
 - Try to guess before revealing the answer!
 
-### 📚 Daily Study Routine
-1. Morning: Check `!word` for new vocabulary
-2. Noon: Learn with `!grammar`
-3. Afternoon: Test yourself with `!quiz`
-4. Evening: Practice with `!smalltalk`
+### 📚 Weekly Study Routine
+1. Friday daytime: Check `!word`, `!grammar`, and `!quiz` when posted
+2. Friday evening: Join the weekly topic discussion, then practice with the weekly `!smalltalk`
 
 ### 🤔 Common Issues
 
