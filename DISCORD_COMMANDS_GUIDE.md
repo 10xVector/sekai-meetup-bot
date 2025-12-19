@@ -160,8 +160,6 @@ Use these to manually post scheduled content:
 - `!forcescheduledjapanesegrammar` - Post grammar lesson now
 - `!forcescheduledenglishgrammar` - Post English grammar now
 - `!forcescheduledsmalltalk` - Post small talk practice to all channels
-- `!forcescheduledjapanesetopic` - Post weekly Japanese topic now
-- `!forcescheduledenglishtopic` - Post weekly English topic now
 
 ### Quiz Answers
 - `!revealjapanesequiz` - Show the answer to current Japanese quiz
@@ -182,8 +180,6 @@ Sekai Buddy automatically posts content weekly at these times (Japan Standard Ti
 | English Quiz | Friday | 1:00 PM | 4:00 AM |
 | English Word | Friday | 2:00 PM | 5:00 AM |
 | English Grammar | Friday | 3:00 PM | 6:00 AM |
-| Japanese Topic | Friday | 7:00 PM | 10:00 AM |
-| English Topic | Friday | 8:00 PM | 11:00 AM |
 | Small Talk Practice | Friday | 9:00 PM | 12:00 PM |
 
 **Note:** For scheduled posts, each `*_CHANNEL_ID` setting can be a comma-separated list to post to multiple channels.
@@ -194,9 +190,6 @@ Sekai Buddy automatically posts content weekly at these times (Japan Standard Ti
 
 ### 🎧 Audio Features
 Most learning commands include audio! Look for the audio file attachment and click to play. The bot uses natural-sounding voices in both Japanese and English.
-
-### 🖼️ Visual Cards
-Commands create beautiful visual cards that are easy to read and share. Perfect for screenshot studying!
 
 ### ❓ Quiz Tips
 - Take your time answering quizzes
@@ -219,11 +212,6 @@ Commands create beautiful visual cards that are easy to read and share. Perfect 
 - Click the audio file attachment
 - Check your Discord audio settings
 - Make sure your device volume is up
-
-**"Can't see the images"**
-- Images might take a moment to load
-- Check your internet connection
-- Try refreshing Discord (Ctrl+R or Cmd+R)
 
 **"Wrong timezone for meetups"**
 - Meetup times auto-adjust to your Discord timezone

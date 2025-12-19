@@ -8,7 +8,6 @@ A Discord bot that helps users learn Japanese and English through scheduled educ
 - **Japanese Learning**: Daily quizzes, word of the day, and grammar points
 - **English Learning**: Daily quizzes, word of the day, and grammar points (for Japanese speakers)
 - **Audio Support**: Text-to-speech for pronunciation practice
-- **Visual Cards**: Beautiful image cards for easy learning and sharing
 
 ### Weekly Content
 - **Small Talk Practice**: Bilingual conversation prompts (Sundays)
@@ -106,7 +105,6 @@ See [SCHEDULED_FEATURES_CONTEXT.md](SCHEDULED_FEATURES_CONTEXT.md) for detailed 
 sekai/
 ├── src/
 │   ├── index.js        # Main bot file
-│   └── cardImage.js    # Image generation
 ├── tests/
 │   └── scheduled-jobs.test.js  # Schedule tests
 ├── DISCORD_COMMANDS_GUIDE.md   # User documentation

@@ -78,22 +78,6 @@ const SCHEDULED_JOBS_CONFIG = {
       jstTime: '9:00 PM',
       utcTime: '12:00 PM',
       channelEnvVar: 'SMALLTALK_CHANNEL_IDS'
-    },
-    {
-      name: 'Japanese Topic',
-      time: '0 10 * * 5',
-      day: 'Friday',
-      jstTime: '7:00 PM',
-      utcTime: '10:00 AM',
-      channelEnvVar: 'JAPANESE_QUIZ_CHANNEL_ID'
-    },
-    {
-      name: 'English Topic',
-      time: '0 11 * * 5',
-      day: 'Friday',
-      jstTime: '8:00 PM',
-      utcTime: '11:00 AM',
-      channelEnvVar: 'ENGLISH_QUIZ_CHANNEL_ID'
     }
   ]
 };
@@ -107,9 +91,7 @@ const FORCE_COMMANDS = [
   '!forcescheduledenglishword',
   '!forcescheduledjapanesegrammar',
   '!forcescheduledenglishgrammar',
-  '!forcescheduledsmalltalk',
-  '!forcescheduledjapanesetopic',
-  '!forcescheduledenglishtopic'
+  '!forcescheduledsmalltalk'
 ];
 
 

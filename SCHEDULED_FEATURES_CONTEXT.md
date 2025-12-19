@@ -18,8 +18,6 @@ Sekai Buddy implements automated content delivery through scheduled jobs using `
 
 ### Weekly Content (JST/UTC)
 - **Sunday 9:00 AM / 0:00 AM** - Small Talk Practice
-- **Saturday 10:00 AM / 1:00 AM** - Japanese Discussion Topic
-- **Saturday 11:00 AM / 2:00 AM** - English Discussion Topic
 
 ## Implementation Details
 
@@ -92,26 +90,6 @@ schedule.scheduleJob('0 0 * * 0', async () => { // 0:00 AM UTC Sunday = 9:00 AM 
 - Includes grammar practice element
 - Force command: `!forcescheduledsmalltalk`
 
-### 8. Japanese Topic (Weekly - Saturdays at 10:00 AM JST)
-```javascript
-schedule.scheduleJob('0 1 * * 6', async () => { // 1:00 AM UTC Saturday = 10:00 AM JST Saturday
-```
-- Weekly discussion topic about Japanese culture
-- Posts to `JAPANESE_QUIZ_CHANNEL_ID`
-- Includes vocabulary, phrases, discussion questions
-- Audio for useful phrases
-- Force command: `!forcescheduledjapanesetopic`
-
-### 9. English Topic (Weekly - Saturdays at 11:00 AM JST)
-```javascript
-schedule.scheduleJob('0 2 * * 6', async () => { // 2:00 AM UTC Saturday = 11:00 AM JST Saturday
-```
-- Weekly topic about English-speaking cultures
-- Posts to `ENGLISH_QUIZ_CHANNEL_ID`
-- Japanese explanations with English phrases
-- English audio pronunciation
-- Force command: `!forcescheduledenglishtopic`
-
 ## Critical Implementation Notes
 
 ### Time Zone Handling
@@ -152,7 +130,6 @@ try {
 - Format: `!forcescheduled[language][feature]`
 - Examples: 
   - `!forcescheduledjapanesequiz`
-  - `!forcescheduledenglishtopic`
   - `!forcescheduledsmalltalk` (no language prefix for bilingual content)
 
 ## Testing

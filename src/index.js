@@ -5,7 +5,7 @@ const { config } = require('dotenv');
 const OpenAI = require('openai');
 const schedule = require('node-schedule');
 const Parser = require('rss-parser');
-const generateCardImage = require('./cardImage');
+// Image-card generation removed (no more PNG cards / background images)
 const textToSpeech = require('@google-cloud/text-to-speech');
 const https = require('https');
 const { GoogleAuth } = require('google-auth-library');
@@ -437,20 +437,39 @@ async function getEnglishTTSBufferDebug(text) {
 
 // Helper function to split text into chunks for TTS
 async function getTTSBufferForLongText(text, isEnglish = false) {
-  // Select a voice once for the entire paragraph
-  const selectedVoice = isEnglish ? 
-    ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)] :
-    JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)];
+  // If Gemini-TTS is enabled, pick a single speaker for the whole paragraph.
+  // (Previously this path used Chirp voices even in Gemini mode, causing silent fallback + inconsistent voices.)
+  const useGemini = isGeminiTtsEnabled();
+  const selectedGeminiSpeaker = useGemini ? pickRandom(GEMINI_SPEAKERS) : null;
+
+  // Chirp3-HD: select a voice once for the entire paragraph
+  const selectedChirpVoice = useGemini
+    ? null
+    : (isEnglish
+        ? ENGLISH_VOICES[Math.floor(Math.random() * ENGLISH_VOICES.length)]
+        : JAPANESE_VOICES[Math.floor(Math.random() * JAPANESE_VOICES.length)]);
   
   // Try to process the entire text as one piece first (if it's within reasonable length)
   // Google Cloud TTS has a limit of ~5000 characters per request
   const MAX_SINGLE_REQUEST = 4000; // Conservative limit
   
   if (text.length <= MAX_SINGLE_REQUEST) {
-    // Process entire text with one voice
-    return isEnglish ? 
-      await getEnglishTTSBufferWithVoice(text, selectedVoice) : 
-      await getTTSBufferWithVoice(text, selectedVoice);
+    // Process entire text with one voice / speaker
+    if (useGemini) {
+      return await synthesizeSpeechBuffer({
+        text,
+        languageCode: isEnglish ? 'en-US' : 'ja-JP',
+        voiceName: selectedGeminiSpeaker,
+        ssmlGender: 'NEUTRAL',
+        speakingRate: 1.0,
+        pitch: 0.0,
+        audioEncoding: 'MP3'
+      });
+    }
+
+    return isEnglish
+      ? await getEnglishTTSBufferWithVoice(text, selectedChirpVoice)
+      : await getTTSBufferWithVoice(text, selectedChirpVoice);
   }
   
   // If text is too long, split into sentences but use the same voice
@@ -460,10 +479,20 @@ async function getTTSBufferForLongText(text, isEnglish = false) {
   for (const sentence of sentences) {
     const trimmedSentence = sentence.trim();
     if (trimmedSentence) {
-      // Use the same voice for all sentences
-      const buffer = isEnglish ? 
-        await getEnglishTTSBufferWithVoice(trimmedSentence, selectedVoice) : 
-        await getTTSBufferWithVoice(trimmedSentence, selectedVoice);
+      // Use the same voice/speaker for all sentences
+      const buffer = useGemini
+        ? await synthesizeSpeechBuffer({
+            text: trimmedSentence,
+            languageCode: isEnglish ? 'en-US' : 'ja-JP',
+            voiceName: selectedGeminiSpeaker,
+            ssmlGender: 'NEUTRAL',
+            speakingRate: 1.0,
+            pitch: 0.0,
+            audioEncoding: 'MP3'
+          })
+        : (isEnglish
+            ? await getEnglishTTSBufferWithVoice(trimmedSentence, selectedChirpVoice)
+            : await getTTSBufferWithVoice(trimmedSentence, selectedChirpVoice));
       audioBuffers.push(buffer);
     }
   }
@@ -691,10 +720,6 @@ Keep everything concise, natural, and conversational.`
         .setFooter({ text: 'Use !smalltalk again for a new one!' });
 
       await message.reply({ embeds: [embed] });
-
-      // Generate the card image from the smalltalk text
-      const imageBuffer = await generateCardImage(reply);
-      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
     } catch (err) {
       console.error('Error fetching from OpenAI or generating image:', err);
       message.reply('Sorry, something went wrong while generating the small talk prompt or image.');
@@ -803,14 +828,15 @@ Keep everything concise, natural, and conversational.`
 
       const reply = completion.choices[0].message.content;
 
-      // Generate the card image from the smalltalk text
-      const imageBuffer = await generateCardImage(reply);
-
       // Send to all configured smalltalk channels
       for (const channelId of SMALLTALK_CHANNEL_IDS) {
         const channel = client.channels.cache.get(channelId);
         if (channel) {
-          await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
+          const embed = new EmbedBuilder()
+            .setColor(0x00AE86)
+            .setDescription(reply)
+            .setFooter({ text: 'Use !smalltalk again for a new one!' });
+          await channel.send({ embeds: [embed] });
         }
       }
       message.reply('✅ Weekly smalltalk has been sent to all configured channels!');
@@ -859,10 +885,8 @@ Do not include greetings, lesson titles, or number the sections.`
       });
 
       const reply = completion.choices[0].message.content;
-
-      // Generate the card image from the word text
-      const imageBuffer = await generateCardImage(reply);
-      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+      const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+      await message.channel.send({ embeds: [embed] });
 
       // Extract the example sentence and generate audio
       const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
@@ -917,10 +941,8 @@ Do not include greetings, lesson titles, or number the sections.`
       });
 
       const reply = completion.choices[0].message.content;
-
-      // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply);
-      await message.channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+      const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+      await message.channel.send({ embeds: [embed] });
 
       // Extract the example sentence and generate audio
       const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
@@ -1015,16 +1037,14 @@ Do not include greetings, lesson titles, or number the sections.`
 
       const reply = completion.choices[0].message.content;
 
-      // Generate the card image from the word text
-      const imageBuffer = await generateCardImage(reply);
-
       // Send to the word channel or current channel if no channel ID is set
       const channel = JAPANESE_WORD_CHANNEL_ID ? 
         client.channels.cache.get(JAPANESE_WORD_CHANNEL_ID) : 
         message.channel;
 
       if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+        const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+        await channel.send({ embeds: [embed] });
 
         // Extract the example sentence and generate audio
         const exampleMatch = reply.match(/🎯 Example:\nJP: (.*?)(?=\n|$)/);
@@ -1112,16 +1132,14 @@ Do not include greetings, lesson titles, or number the sections.`
 
       const reply = completion.choices[0].message.content;
 
-      // Generate the card image from the word text
-      const imageBuffer = await generateCardImage(reply);
-
       // Send to the English word channel or current channel if no channel ID is set
       const channel = ENGLISH_WORD_CHANNEL_ID ? 
         client.channels.cache.get(ENGLISH_WORD_CHANNEL_ID) : 
         message.channel;
 
       if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
+        const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+        await channel.send({ embeds: [embed] });
 
         // Extract the example sentence and generate audio using English TTS
         const exampleMatch = reply.match(/🎯 Example:\nEN: (.*?)(?=\n|$)/);
@@ -1211,16 +1229,14 @@ Do not include greetings, lesson titles, or number the sections.`
 
       const reply = completion.choices[0].message.content;
 
-      // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply);
-
       // Send to the grammar channel or current channel if no channel ID is set
       const channel = JAPANESE_GRAMMAR_CHANNEL_ID ? 
         client.channels.cache.get(JAPANESE_GRAMMAR_CHANNEL_ID) : 
         message.channel;
 
       if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+        const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+        await channel.send({ embeds: [embed] });
 
         // Extract the example sentence and generate audio
         const exampleMatch = reply.match(/🎯 Examples:\nJP: (.*?)(?=\n|$)/);
@@ -1307,22 +1323,20 @@ Do not include greetings, lesson titles, or number the sections.`
 
       const reply = completion.choices[0].message.content;
 
-      // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply);
-
       // Send to the English grammar channel or current channel if no channel ID is set
       const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
         client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID) : 
         message.channel;
 
       if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+        const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+        await channel.send({ embeds: [embed] });
 
         // Extract the example sentence and generate audio
         const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
         if (exampleMatch) {
           const exampleSentence = exampleMatch[1].trim();
-          const audioBuffer = await getTTSBuffer(exampleSentence);
+          const audioBuffer = await getEnglishTTSBuffer(exampleSentence);
           const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' });
           await channel.send({ files: [audioAttachment] });
         }
@@ -1403,16 +1417,14 @@ Do not include greetings, lesson titles, or number the sections.`
 
       const reply = completion.choices[0].message.content;
 
-      // Generate the card image from the grammar text
-      const imageBuffer = await generateCardImage(reply);
-
       // Send to the English grammar channel or current channel if no channel ID is set
       const channel = ENGLISH_GRAMMAR_CHANNEL_ID ? 
         client.channels.cache.get(ENGLISH_GRAMMAR_CHANNEL_ID) : 
         message.channel;
 
       if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+        const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+        await channel.send({ embeds: [embed] });
 
         // Extract the example sentence and generate audio
         const exampleMatch = reply.match(/🎯 Examples:\nEN: (.*?)(?=\n|$)/);
@@ -1438,208 +1450,6 @@ Do not include greetings, lesson titles, or number the sections.`
     } catch (err) {
       console.error('Error generating English quiz:', err);
       message.reply('Sorry, something went wrong while generating the English quiz.');
-    }
-  }
-
-  if (message.content === '!forcescheduledjapanesetopic') {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a Japanese language tutor generating a weekly discussion topic for language learners.
-Each week, select a different cultural, social, or everyday topic that helps learners understand Japanese culture and practice their language skills.
-
-Consider these categories when selecting topics:
-- Japanese festivals and traditions
-- Modern Japanese culture (anime, manga, J-pop, etc.)
-- Japanese food culture and etiquette
-- Work culture and business customs
-- Education system and school life
-- Family and social relationships
-- Technology and innovation in Japan
-- Travel destinations and local specialties
-- Seasonal activities and events
-- Daily life and customs
-- Traditional arts and crafts
-- Sports and recreation
-- Environmental practices
-- Shopping and consumer culture
-- Transportation and city life
-
-Format the response into exactly 5 clearly separated blocks (using \n\n):
-
-📅 Weekly Topic: <Topic name in English and Japanese>
-
-🎯 Topic Overview:
-<Brief introduction to the topic (2-3 sentences) explaining why this topic is interesting and relevant to Japanese learners>
-
-📚 Key Vocabulary:
-• <Word 1> (JP) - <Romaji> - <English>
-• <Word 2> (JP) - <Romaji> - <English>
-• <Word 3> (JP) - <Romaji> - <English>
-• <Word 4> (JP) - <Romaji> - <English>
-• <Word 5> (JP) - <Romaji> - <English>
-
-💬 Useful Phrases:
-• JP: <Phrase 1>
-  Romaji: <Romaji>
-  EN: <English>
-• JP: <Phrase 2>
-  Romaji: <Romaji>
-  EN: <English>
-• JP: <Phrase 3>
-  Romaji: <Romaji>
-  EN: <English>
-
-🤔 Discussion Questions:
-1. <Question 1 in English>
-   <Question 1 in Japanese>
-2. <Question 2 in English>
-   <Question 2 in Japanese>
-3. <Question 3 in English>
-   <Question 3 in Japanese>
-
-Do not include greetings or lesson titles.`
-          },
-          {
-            role: 'user',
-            content: 'Give me a weekly Japanese discussion topic.'
-          }
-        ]
-      });
-
-      const reply = completion.choices[0].message.content;
-
-      // Generate the card image from the topic text
-      const imageBuffer = await generateCardImage(reply);
-
-      await message.channel.send({ 
-        content: '@everyone 📅 **Weekly Japanese Topic / 今週の日本語トピック**',
-        files: [{ attachment: imageBuffer, name: 'weekly-japanese-topic.png' }] 
-      });
-      
-      // Extract and send audio for the useful phrases
-      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
-      if (phrasesMatch) {
-        const phrasesSection = phrasesMatch[1];
-        const japanesePhrasesMatches = phrasesSection.matchAll(/JP: (.*?)(?=\n)/g);
-        const japanesePhrases = Array.from(japanesePhrasesMatches).map(match => match[1].trim());
-        
-        if (japanesePhrases.length > 0) {
-          const combinedPhrases = japanesePhrases.join('。　');
-          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, false);
-          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-phrases.mp3' });
-          await message.channel.send({ files: [audioAttachment] });
-        }
-      }
-      
-      await message.channel.send("💡 Use these vocabulary and phrases throughout the week! Share your own examples and join the discussion. / 今週はこの単語とフレーズを使ってみましょう！");
-      message.reply('✅ Weekly Japanese topic has been sent!');
-    } catch (err) {
-      console.error('Error generating forced scheduled Japanese topic:', err);
-      message.reply('Sorry, something went wrong while generating the forced scheduled Japanese topic.');
-    }
-  }
-
-  if (message.content === '!forcescheduledenglishtopic') {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an English language tutor generating a weekly discussion topic for Japanese learners.
-Each week, select a different cultural, social, or everyday topic that helps Japanese learners understand English-speaking cultures and practice their English skills.
-
-Consider these categories when selecting topics:
-- Holidays and traditions in English-speaking countries
-- Modern Western culture (movies, music, social media trends)
-- Food culture and dining etiquette
-- Work culture and business communication
-- Education systems and campus life
-- Family and social relationships
-- Technology and digital culture
-- Travel destinations and tourism
-- Seasonal activities and events
-- Daily life and customs
-- Arts and entertainment
-- Sports and recreation
-- Environmental awareness
-- Shopping and consumer trends
-- Transportation and urban life
-
-Format the response into exactly 5 clearly separated blocks (using \n\n):
-
-📅 Weekly Topic: <Topic name in English>
-(JP: <Topic name in Japanese>)
-
-🎯 Topic Overview:
-<Brief introduction to the topic in Japanese (2-3 sentences) explaining why this topic is interesting and relevant to English learners>
-
-📚 Key Vocabulary:
-• <Word 1> - JP: <Japanese meaning>
-• <Word 2> - JP: <Japanese meaning>
-• <Word 3> - JP: <Japanese meaning>
-• <Word 4> - JP: <Japanese meaning>
-• <Word 5> - JP: <Japanese meaning>
-
-💬 Useful Phrases:
-• EN: <Phrase 1>
-  JP: <Japanese translation>
-• EN: <Phrase 2>
-  JP: <Japanese translation>
-• EN: <Phrase 3>
-  JP: <Japanese translation>
-
-🤔 Discussion Questions:
-1. EN: <Question 1 in English>
-   JP: <Question 1 in Japanese>
-2. EN: <Question 2 in English>
-   JP: <Question 2 in Japanese>
-3. EN: <Question 3 in English>
-   JP: <Question 3 in Japanese>
-
-Do not include greetings or lesson titles.`
-          },
-          {
-            role: 'user',
-            content: 'Give me a weekly English discussion topic for Japanese learners.'
-          }
-        ]
-      });
-
-      const reply = completion.choices[0].message.content;
-
-      // Generate the card image from the topic text
-      const imageBuffer = await generateCardImage(reply);
-
-      await message.channel.send({ 
-        content: '@everyone 📅 **Weekly English Topic / 今週の英語トピック**',
-        files: [{ attachment: imageBuffer, name: 'weekly-english-topic.png' }] 
-      });
-      
-      // Extract and send audio for the useful phrases
-      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
-      if (phrasesMatch) {
-        const phrasesSection = phrasesMatch[1];
-        const englishPhrasesMatches = phrasesSection.matchAll(/EN: (.*?)(?=\n)/g);
-        const englishPhrases = Array.from(englishPhrasesMatches).map(match => match[1].trim());
-        
-        if (englishPhrases.length > 0) {
-          const combinedPhrases = englishPhrases.join('. ');
-          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, true);
-          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-english-phrases.mp3' });
-          await message.channel.send({ files: [audioAttachment] });
-        }
-      }
-      
-      await message.channel.send("💡 今週はこれらの語彙とフレーズを使って練習しましょう！例文を作って共有してください。");
-      message.reply('✅ Weekly English topic has been sent!');
-    } catch (err) {
-      console.error('Error generating forced scheduled English topic:', err);
-      message.reply('Sorry, something went wrong while generating the forced scheduled English topic.');
     }
   }
 
@@ -2017,9 +1827,6 @@ Do not include greetings, lesson titles, or number the sections.`
 
     const reply = completion.choices[0].message.content;
 
-    // Generate the card image from the word text
-    const imageBuffer = await generateCardImage(reply);
-
     // Send to all configured word channels
     const channelIds = parseChannelIdList(JAPANESE_WORD_CHANNEL_ID);
     const channels = await fetchChannelsByIds(channelIds);
@@ -2035,7 +1842,8 @@ Do not include greetings, lesson titles, or number the sections.`
     const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' }) : null;
 
     for (const channel of channels) {
-      await channel.send({ files: [{ attachment: imageBuffer, name: 'word-card.png' }] });
+      const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+      await channel.send({ embeds: [embed] });
       if (audioAttachment) {
         await channel.send({ files: [audioAttachment] });
       }
@@ -2085,9 +1893,6 @@ Do not include greetings, lesson titles, or number the sections.`
 
     const reply = completion.choices[0].message.content;
 
-    // Generate the card image from the grammar text
-    const imageBuffer = await generateCardImage(reply);
-
     // Send to all configured grammar channels
     const channelIds = parseChannelIdList(JAPANESE_GRAMMAR_CHANNEL_ID);
     const channels = await fetchChannelsByIds(channelIds);
@@ -2103,7 +1908,8 @@ Do not include greetings, lesson titles, or number the sections.`
     const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'first-example.mp3' }) : null;
 
     for (const channel of channels) {
-      await channel.send({ files: [{ attachment: imageBuffer, name: 'grammar-card.png' }] });
+      const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+      await channel.send({ embeds: [embed] });
       if (audioAttachment) {
         await channel.send({ files: [audioAttachment] });
       }
@@ -2215,9 +2021,6 @@ Do not include greetings, lesson titles, or number the sections.`
 
     const reply = completion.choices[0].message.content;
 
-    // Generate the card image from the word text
-    const imageBuffer = await generateCardImage(reply);
-
     // Send to all configured English word channels
     const channelIds = parseChannelIdList(ENGLISH_WORD_CHANNEL_ID);
     const channels = await fetchChannelsByIds(channelIds);
@@ -2233,7 +2036,8 @@ Do not include greetings, lesson titles, or number the sections.`
     const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' }) : null;
 
     for (const channel of channels) {
-      await channel.send({ files: [{ attachment: imageBuffer, name: 'english-word-card.png' }] });
+      const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+      await channel.send({ embeds: [embed] });
       if (audioAttachment) {
         await channel.send({ files: [audioAttachment] });
       }
@@ -2318,9 +2122,6 @@ Do not include greetings, lesson titles, or number the sections.`
 
     const reply = completion.choices[0].message.content;
 
-    // Generate the card image from the grammar text
-    const imageBuffer = await generateCardImage(reply);
-
     // Send to all configured English grammar channels
     const channelIds = parseChannelIdList(ENGLISH_GRAMMAR_CHANNEL_ID);
     const channels = await fetchChannelsByIds(channelIds);
@@ -2336,7 +2137,8 @@ Do not include greetings, lesson titles, or number the sections.`
     const audioAttachment = audioBuffer ? new AttachmentBuilder(audioBuffer, { name: 'english-example.mp3' }) : null;
 
     for (const channel of channels) {
-      await channel.send({ files: [{ attachment: imageBuffer, name: 'english-grammar-card.png' }] });
+      const embed = new EmbedBuilder().setColor(0x00AE86).setDescription(reply);
+      await channel.send({ embeds: [embed] });
       if (audioAttachment) {
         await channel.send({ files: [audioAttachment] });
       }
@@ -2412,252 +2214,21 @@ Keep everything concise, natural, and conversational.`
 
     const reply = completion.choices[0].message.content;
 
-    // Generate the card image from the smalltalk text
-    const imageBuffer = await generateCardImage(reply);
-
     // Send to all configured smalltalk channels
     for (const channelId of SMALLTALK_CHANNEL_IDS) {
       const channel = await client.channels.fetch(channelId).catch(() => null);
       if (channel) {
-        await channel.send({ files: [{ attachment: imageBuffer, name: 'smalltalk-card.png' }] });
+        const embed = new EmbedBuilder()
+          .setColor(0x00AE86)
+          .setDescription(reply)
+          .setFooter({ text: 'Use !smalltalk again for a new one!' });
+        await channel.send({ embeds: [embed] });
       }
     }
     
     console.log('Scheduled weekly small talk completed successfully');
   } catch (err) {
     console.error('Error generating scheduled weekly small talk:', err);
-    console.error('Error stack:', err.stack);
-  }
-});
-
-// Weekly Japanese topic (Fridays at 7:00 PM JST)
-schedule.scheduleJob('0 10 * * 5', async () => { // 10:00 AM UTC Friday = 7:00 PM JST Friday
-  try {
-    console.log('Starting scheduled weekly Japanese topic...');
-    
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a Japanese language tutor generating a weekly discussion topic for language learners.
-Each week, select a different cultural, social, or everyday topic that helps learners understand Japanese culture and practice their language skills.
-
-Consider these categories when selecting topics:
-- Japanese festivals and traditions
-- Modern Japanese culture (anime, manga, J-pop, etc.)
-- Japanese food culture and etiquette
-- Work culture and business customs
-- Education system and school life
-- Family and social relationships
-- Technology and innovation in Japan
-- Travel destinations and local specialties
-- Seasonal activities and events
-- Daily life and customs
-- Traditional arts and crafts
-- Sports and recreation
-- Environmental practices
-- Shopping and consumer culture
-- Transportation and city life
-
-Format the response into exactly 5 clearly separated blocks (using \n\n):
-
-📅 Weekly Topic: <Topic name in English and Japanese>
-
-🎯 Topic Overview:
-<Brief introduction to the topic (2-3 sentences) explaining why this topic is interesting and relevant to Japanese learners>
-
-📚 Key Vocabulary:
-• <Word 1> (JP) - <Romaji> - <English>
-• <Word 2> (JP) - <Romaji> - <English>
-• <Word 3> (JP) - <Romaji> - <English>
-• <Word 4> (JP) - <Romaji> - <English>
-• <Word 5> (JP) - <Romaji> - <English>
-
-💬 Useful Phrases:
-• JP: <Phrase 1>
-  Romaji: <Romaji>
-  EN: <English>
-• JP: <Phrase 2>
-  Romaji: <Romaji>
-  EN: <English>
-• JP: <Phrase 3>
-  Romaji: <Romaji>
-  EN: <English>
-
-🤔 Discussion Questions:
-1. <Question 1 in English>
-   <Question 1 in Japanese>
-2. <Question 2 in English>
-   <Question 2 in Japanese>
-3. <Question 3 in English>
-   <Question 3 in Japanese>
-
-Do not include greetings or lesson titles.`
-        },
-        {
-          role: 'user',
-          content: 'Give me a weekly Japanese discussion topic.'
-        }
-      ]
-    });
-
-    const reply = completion.choices[0].message.content;
-
-    // Generate the card image from the topic text
-    const imageBuffer = await generateCardImage(reply);
-
-    // Send to all configured Japanese quiz channels (or create a new JAPANESE_TOPIC_CHANNEL_ID if needed)
-    const channelIds = parseChannelIdList(JAPANESE_QUIZ_CHANNEL_ID);
-    const channels = await fetchChannelsByIds(channelIds);
-    if (channels.length > 0) {
-      for (const channel of channels) {
-        await channel.send({ 
-          content: '@everyone 📅 **Weekly Japanese Topic / 今週の日本語トピック**',
-          files: [{ attachment: imageBuffer, name: 'weekly-japanese-topic.png' }] 
-        });
-      }
-      
-      // Extract and send audio for the useful phrases
-      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
-      if (phrasesMatch) {
-        const phrasesSection = phrasesMatch[1];
-        const japanesePhrasesMatches = phrasesSection.matchAll(/JP: (.*?)(?=\n)/g);
-        const japanesePhrases = Array.from(japanesePhrasesMatches).map(match => match[1].trim());
-        
-        if (japanesePhrases.length > 0) {
-          const combinedPhrases = japanesePhrases.join('。　');
-          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, false);
-          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-phrases.mp3' });
-          for (const channel of channels) {
-            await channel.send({ files: [audioAttachment] });
-          }
-        }
-      }
-      
-      for (const channel of channels) {
-        await channel.send("💡 Use these vocabulary and phrases throughout the week! Share your own examples and join the discussion. / 今週はこの単語とフレーズを使ってみましょう！");
-      }
-    }
-    
-    console.log('Scheduled weekly Japanese topic completed successfully');
-  } catch (err) {
-    console.error('Error generating scheduled weekly Japanese topic:', err);
-    console.error('Error stack:', err.stack);
-  }
-});
-
-// Weekly English topic (Fridays at 8:00 PM JST)
-schedule.scheduleJob('0 11 * * 5', async () => { // 11:00 AM UTC Friday = 8:00 PM JST Friday
-  try {
-    console.log('Starting scheduled weekly English topic...');
-    
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an English language tutor generating a weekly discussion topic for Japanese learners.
-Each week, select a different cultural, social, or everyday topic that helps Japanese learners understand English-speaking cultures and practice their English skills.
-
-Consider these categories when selecting topics:
-- Holidays and traditions in English-speaking countries
-- Modern Western culture (movies, music, social media trends)
-- Food culture and dining etiquette
-- Work culture and business communication
-- Education systems and campus life
-- Family and social relationships
-- Technology and digital culture
-- Travel destinations and tourism
-- Seasonal activities and events
-- Daily life and customs
-- Arts and entertainment
-- Sports and recreation
-- Environmental awareness
-- Shopping and consumer trends
-- Transportation and urban life
-
-Format the response into exactly 5 clearly separated blocks (using \n\n):
-
-📅 Weekly Topic: <Topic name in English>
-(JP: <Topic name in Japanese>)
-
-🎯 Topic Overview:
-<Brief introduction to the topic in Japanese (2-3 sentences) explaining why this topic is interesting and relevant to English learners>
-
-📚 Key Vocabulary:
-• <Word 1> - JP: <Japanese meaning>
-• <Word 2> - JP: <Japanese meaning>
-• <Word 3> - JP: <Japanese meaning>
-• <Word 4> - JP: <Japanese meaning>
-• <Word 5> - JP: <Japanese meaning>
-
-💬 Useful Phrases:
-• EN: <Phrase 1>
-  JP: <Japanese translation>
-• EN: <Phrase 2>
-  JP: <Japanese translation>
-• EN: <Phrase 3>
-  JP: <Japanese translation>
-
-🤔 Discussion Questions:
-1. EN: <Question 1 in English>
-   JP: <Question 1 in Japanese>
-2. EN: <Question 2 in English>
-   JP: <Question 2 in Japanese>
-3. EN: <Question 3 in English>
-   JP: <Question 3 in Japanese>
-
-Do not include greetings or lesson titles.`
-        },
-        {
-          role: 'user',
-          content: 'Give me a weekly English discussion topic for Japanese learners.'
-        }
-      ]
-    });
-
-    const reply = completion.choices[0].message.content;
-
-    // Generate the card image from the topic text
-    const imageBuffer = await generateCardImage(reply);
-
-    // Send to all configured English quiz channels (or create a new ENGLISH_TOPIC_CHANNEL_ID if needed)
-    const channelIds = parseChannelIdList(ENGLISH_QUIZ_CHANNEL_ID);
-    const channels = await fetchChannelsByIds(channelIds);
-    if (channels.length > 0) {
-      for (const channel of channels) {
-        await channel.send({ 
-          content: '@everyone 📅 **Weekly English Topic / 今週の英語トピック**',
-          files: [{ attachment: imageBuffer, name: 'weekly-english-topic.png' }] 
-        });
-      }
-      
-      // Extract and send audio for the useful phrases
-      const phrasesMatch = reply.match(/💬 Useful Phrases:([\s\S]*?)(?=\n\n|$)/);
-      if (phrasesMatch) {
-        const phrasesSection = phrasesMatch[1];
-        const englishPhrasesMatches = phrasesSection.matchAll(/EN: (.*?)(?=\n)/g);
-        const englishPhrases = Array.from(englishPhrasesMatches).map(match => match[1].trim());
-        
-        if (englishPhrases.length > 0) {
-          const combinedPhrases = englishPhrases.join('. ');
-          const audioBuffer = await getTTSBufferForLongText(combinedPhrases, true);
-          const audioAttachment = new AttachmentBuilder(audioBuffer, { name: 'weekly-english-phrases.mp3' });
-          for (const channel of channels) {
-            await channel.send({ files: [audioAttachment] });
-          }
-        }
-      }
-      
-      for (const channel of channels) {
-        await channel.send("💡 今週はこれらの語彙とフレーズを使って練習しましょう！例文を作って共有してください。");
-      }
-    }
-    
-    console.log('Scheduled weekly English topic completed successfully');
-  } catch (err) {
-    console.error('Error generating scheduled weekly English topic:', err);
     console.error('Error stack:', err.stack);
   }
 });
