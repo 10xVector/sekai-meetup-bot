@@ -47,7 +47,7 @@ Keep everything concise, natural, and conversational.`;
 
 async function generateSmallTalk(openai) {
     const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gemini-2.5-flash',
         messages: [
             { role: 'system', content: SMALLTALK_PROMPT },
             { role: 'user', content: 'Generate a Japanese-English small talk prompt with an interesting, varied topic. Avoid repetitive themes like basic sports or ice cream.' }

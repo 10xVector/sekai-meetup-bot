@@ -82,7 +82,10 @@ const quizData = {
   english: { pollMessage: null, answer: null, explanation: null, channel: null }
 };
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ 
+  apiKey: process.env.GEMINI_API_KEY,
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+});
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 
 // Placeholder for quiz channel
@@ -405,13 +408,11 @@ client.on(Events.MessageCreate, async message => {
 
   if (message.content === '!forcescheduledenglishquiz') {
     try {
-      const quiz = await generateComprehensionQuiz('english');
-      const channel = client.channels.cache.get(ENGLISH_QUIZ_CHANNEL_ID);
-      if (!channel) {
-        console.error('English quiz channel not found:', ENGLISH_QUIZ_CHANNEL_ID);
-        return;
-      }
-      await sendQuiz(quiz, channel, true);
+      const quiz = await quizModule.generateComprehensionQuiz(openai, 'english');
+      const channelIds = parseChannelIdList(constants.ENGLISH_QUIZ_CHANNEL_ID);
+      const channels = await fetchChannelsByIds(client, channelIds);
+      const targetChannel = channels.length > 0 ? channels[0] : message.channel;
+      await quizModule.sendQuiz(quiz, targetChannel, quizData, true);
     } catch (err) {
       console.error('Error generating forced scheduled English quiz:', err);
       message.reply('Sorry, something went wrong while generating the forced scheduled English quiz.');
@@ -421,9 +422,10 @@ client.on(Events.MessageCreate, async message => {
   if (message.content === '!forcescheduledjapanesequiz') {
     try {
       const quiz = await quizModule.generateComprehensionQuiz(openai, 'japanese');
-      const channel = client.channels.cache.get(JAPANESE_QUIZ_CHANNEL_ID);
-      if (!channel) return;
-      await quizModule.sendQuiz(quiz, channel, quizData, false);
+      const channelIds = parseChannelIdList(constants.JAPANESE_QUIZ_CHANNEL_ID);
+      const channels = await fetchChannelsByIds(client, channelIds);
+      const targetChannel = channels.length > 0 ? channels[0] : message.channel;
+      await quizModule.sendQuiz(quiz, targetChannel, quizData, false);
     } catch (err) {
       console.error('Error in !forcescheduledjapanesequiz command:', err);
     }

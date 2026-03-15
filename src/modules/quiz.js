@@ -58,7 +58,7 @@ Explanation: <why, including key nuances and why other options are incorrect>
 `;
 
     const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gemini-2.5-flash',
         messages: [
             { role: 'system', content: quizPrompt },
             { role: 'user', content: 'Generate a new quiz.' }
