@@ -3,8 +3,22 @@
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const { getTTSBufferForLongText } = require('../utils/tts');
 
+const JLPT_LEVEL_GUIDANCE = {
+    N5: 'JLPT N5 (beginner): use only basic vocabulary (~800 words) and elementary grammar (です/ます, basic particles, present/past tense, ~100 common kanji with furigana not required but kanji should be very common). Sentences should be short and direct.',
+    N4: 'JLPT N4 (elementary): use elementary vocabulary (~1500 words) and basic grammar (て-form, conditional たら, potential form, ~300 common kanji). Sentences are short but can include simple connectives.',
+    N3: 'JLPT N3 (intermediate): use intermediate vocabulary (~3700 words) and grammar (passive, causative, basic keigo, ~650 kanji). Include some everyday idiomatic expressions.',
+    N2: 'JLPT N2 (pre-advanced): use upper-intermediate vocabulary (~6000 words) and nuanced grammar (advanced conjunctions, formal/business expressions, ~1000 kanji). Sentences can be more complex with implied meaning.',
+    N1: 'JLPT N1 (advanced): use advanced vocabulary (~10000 words), idiomatic, literary, or formal expressions, and complex grammar including rare patterns (~2000 kanji). Sentences should reflect native-level nuance and abstraction.'
+};
+
+function pickRandomJlptLevel() {
+    const levels = ['N5', 'N4', 'N3', 'N2', 'N1'];
+    return levels[Math.floor(Math.random() * levels.length)];
+}
+
 async function generateComprehensionQuiz(openai, language = 'japanese') {
     const isEnglish = language === 'english';
+    const level = isEnglish ? null : pickRandomJlptLevel();
     const quizPrompt = isEnglish ?
         `You are an English language comprehension quiz generator for Japanese learners.
 Generate an English paragraph (2-3 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
@@ -34,9 +48,12 @@ Explanation: <why in Japanese, including key nuances and why other options are i
         `You are a Japanese language comprehension quiz generator.
 Generate a Japanese paragraph (3-4 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 
+Target proficiency level: ${level} — ${JLPT_LEVEL_GUIDANCE[level]}
+Strictly match the vocabulary, kanji, and grammar to this level. Do NOT use vocabulary or grammar above this level.
+
 The paragraph should:
-1. Include subtle nuances, implications, or cultural context that require deeper understanding
-2. Use a mix of grammar patterns and vocabulary that learners might encounter in real life
+1. Include subtle nuances, implications, or cultural context that require deeper understanding (calibrated to the level)
+2. Use a mix of grammar patterns and vocabulary appropriate for ${level} learners
 3. Have some ambiguity or room for interpretation in certain aspects
 
 Then provide 4 English options (A, B, C, D) for its meaning. The options should:
@@ -64,27 +81,32 @@ Explanation: <why, including key nuances and why other options are incorrect>
             { role: 'user', content: 'Generate a new quiz.' }
         ]
     });
-    return completion.choices[0].message.content;
+    return { quiz: completion.choices[0].message.content, level };
 }
 
-async function sendQuiz(quiz, channel, quizData, isEnglish = false) {
-    if (!quiz || !channel) return;
+async function sendQuiz(quizResult, channel, quizData, isEnglish = false) {
+    if (!quizResult || !channel) return;
+    const quiz = typeof quizResult === 'string' ? quizResult : quizResult.quiz;
+    const level = typeof quizResult === 'string' ? null : quizResult.level;
 
     try {
         const textMatch = quiz.match(isEnglish ? /EN:\s*(.+)/ : /JP:\s*(.+)/);
         const question = textMatch ? textMatch[1].trim() : (isEnglish ? 'English paragraph' : 'Japanese paragraph');
 
+        const levelSuffix = level ? ` · ${level}` : '';
+        const header = `@everyone **Weekly ${isEnglish ? 'English ' : ''}Quiz${levelSuffix}**\n${question}`;
+
         try {
             const audioBuffer = await getTTSBufferForLongText(question, isEnglish ? 'en-US' : 'ja-JP');
             const audioAttachment = new AttachmentBuilder(audioBuffer, { name: `${isEnglish ? 'english-' : ''}quiz-audio.mp3` });
             await channel.send({
-                content: `@everyone **Weekly ${isEnglish ? 'English ' : ''}Quiz**\n${question}`,
+                content: header,
                 files: [audioAttachment]
             });
         } catch (ttsError) {
             console.error('TTS error, sending without audio:', ttsError);
             await channel.send({
-                content: `@everyone **Weekly ${isEnglish ? 'English ' : ''}Quiz**\n${question}`
+                content: header
             });
         }
 
