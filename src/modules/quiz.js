@@ -19,41 +19,106 @@ const JLPT_PASSAGE_LENGTH = {
     N1: '6-8 sentences (roughly 500-800 characters total), matching real JLPT N1 短文/中文'
 };
 
+const TOEIC_LEVEL_GUIDANCE = {
+    '400': 'TOEIC 400-band (basic, ~CEFR A2): simple present/past tense, common everyday vocabulary (~1500 words), short straightforward sentences. Topics: shopping, daily schedules, basic office tasks.',
+    '600': 'TOEIC 600-band (intermediate, ~CEFR B1): present perfect, modal verbs, ~3000 word vocabulary. Topics: meetings, travel, customer service, basic reports.',
+    '800': 'TOEIC 800-band (upper-intermediate, ~CEFR B2): conditionals, passive voice, phrasal verbs, ~5000 word vocabulary including business terminology. Topics: business correspondence, marketing, HR, finance.',
+    '900': 'TOEIC 900-band (advanced, ~CEFR C1): complex business and academic content, nuanced grammar, idiomatic expressions, ~8000 word vocabulary. Topics: contracts, M&A, technical reports, executive briefings.'
+};
+
+const POLL_QUESTION_EN = 'Choose the best answer.';
+const POLL_QUESTION_JP = 'What is the most accurate English meaning?';
+
 function pickRandomJlptLevel() {
     const levels = ['N5', 'N4', 'N3', 'N2', 'N1'];
     return levels[Math.floor(Math.random() * levels.length)];
 }
 
+function pickRandomToeicLevel() {
+    const levels = ['400', '600', '800', '900'];
+    return levels[Math.floor(Math.random() * levels.length)];
+}
+
+function pickRandomToeicPart() {
+    // Part 5 (incomplete sentences) and Part 7 (reading comprehension).
+    // Part 6 (multi-blank text completion) is skipped — doesn't fit a single Discord poll.
+    const parts = ['5', '7'];
+    return parts[Math.floor(Math.random() * parts.length)];
+}
+
 async function generateComprehensionQuiz(openai, language = 'japanese') {
     const isEnglish = language === 'english';
-    const level = isEnglish ? null : pickRandomJlptLevel();
-    const quizPrompt = isEnglish ?
-        `You are an English language comprehension quiz generator for Japanese learners.
-Generate an English paragraph (2-3 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+    const level = isEnglish ? pickRandomToeicLevel() : pickRandomJlptLevel();
+    const part = isEnglish ? pickRandomToeicPart() : null;
 
-The paragraph should:
-1. Include subtle nuances, implications, or cultural context that require deeper understanding
-2. Use a mix of grammar patterns and vocabulary that Japanese learners might encounter in real life
-3. Have some ambiguity or room for interpretation in certain aspects
+    let quizPrompt;
+    if (isEnglish && part === '5') {
+        quizPrompt = `You are a TOEIC quiz generator producing Part 5 (Incomplete Sentences) questions for Japanese learners of English.
 
-Then provide 4 Japanese options (A, B, C, D) for its meaning. The options should:
-1. All be plausible interpretations of the text
-2. Differ in subtle ways (e.g., timing, speaker's attitude, implied meaning, cultural context)
-3. Include at least one option that's partially correct but misses a key nuance
-4. Have only one option that captures all aspects of the text accurately
+Target proficiency band: ${level} — ${TOEIC_LEVEL_GUIDANCE[level]}
 
-After the options, state the correct answer and a detailed explanation in Japanese that highlights the key nuances and why the other options are incorrect.
+Generate ONE English sentence with exactly one blank shown as ____ (four underscores). Topics should match real TOEIC contexts: business correspondence, office life, travel, schedules, customer service, meetings, reports.
+
+The blank should test ONE of the following grammar/vocabulary categories (choose one and announce it):
+- Verb tense or aspect
+- Voice (active/passive)
+- Subject-verb agreement
+- Word form (noun / verb / adjective / adverb derivation)
+- Preposition
+- Conjunction or connector
+- Vocabulary choice (commonly confused words, business vocabulary)
+- Pronoun
+- Article
+
+Then provide 4 English options (A, B, C, D). Conventions:
+1. Exactly one option is unambiguously correct
+2. The 3 wrong options must be plausible at first glance — same word family, similar form, or commonly confused — but each must contain a specific grammatical or semantic error a careful reader can identify
+3. All four options should be similar in length and register
 
 Format:
-EN: <paragraph>
-A) <option 1 in Japanese>
-B) <option 2 in Japanese>
-C) <option 3 in Japanese>
-D) <option 4 in Japanese>
+TYPE: <category from the list above>
+EN: <sentence with ____ blank>
+A) <option 1>
+B) <option 2>
+C) <option 3>
+D) <option 4>
 Answer: <A/B/C/D>
-Explanation: <why in Japanese, including key nuances and why other options are incorrect>
-` :
-        `You are a Japanese language comprehension quiz generator that produces questions in the style of the real JLPT (Japanese-Language Proficiency Test) reading section.
+Explanation: <why the correct answer is right, then for each wrong option the specific error>
+`;
+    } else if (isEnglish) {
+        quizPrompt = `You are a TOEIC quiz generator producing Part 7 (Reading Comprehension) questions for Japanese learners of English.
+
+Target proficiency band: ${level} — ${TOEIC_LEVEL_GUIDANCE[level]}
+
+Generate a short English passage in a real TOEIC format. Pick one format: email, memo, notice, advertisement, article, schedule, or letter.
+
+Passage length: 60-150 words, calibrated to the band above.
+
+Then write ONE question about the passage. Use one of these question types:
+- Main idea / purpose ("What is the purpose of...")
+- Specific detail ("When/Where/Who/How much...")
+- Inference ("What is implied about...")
+- Vocabulary in context ("The word X most nearly means...")
+
+Then provide 4 English options (A, B, C, D). Conventions:
+1. Exactly one option is unambiguously correct based on what the passage actually says
+2. The 3 wrong options must each contain ONE concrete contradiction or error: wrong actor, wrong time, wrong amount, wrong reason, or stating something not present in the passage
+3. Wrong options must NOT be vague or "almost right" — a careful reader who understood the passage can eliminate each one by pointing to a specific phrase
+4. All four options should be similar in length
+
+Format:
+TYPE: <email/memo/notice/advertisement/article/schedule/letter>
+EN: <passage>
+QUESTION: <question text>
+A) <option 1>
+B) <option 2>
+C) <option 3>
+D) <option 4>
+Answer: <A/B/C/D>
+Explanation: <why the correct answer is right, then for each wrong option the specific contradiction>
+`;
+    } else {
+        quizPrompt = `You are a Japanese language comprehension quiz generator that produces questions in the style of the real JLPT (Japanese-Language Proficiency Test) reading section.
 
 Generate a Japanese passage about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 
@@ -83,6 +148,7 @@ D) <option 4>
 Answer: <A/B/C/D>
 Explanation: <why the correct answer is right, then for each wrong option the specific contradiction>
 `;
+    }
 
     const completion = await openai.chat.completions.create({
         model: 'gemini-2.5-flash',
@@ -91,33 +157,50 @@ Explanation: <why the correct answer is right, then for each wrong option the sp
             { role: 'user', content: 'Generate a new quiz.' }
         ]
     });
-    return { quiz: completion.choices[0].message.content, level };
+    return { quiz: completion.choices[0].message.content, level, part };
 }
 
 async function sendQuiz(quizResult, channel, quizData, isEnglish = false) {
     if (!quizResult || !channel) return;
     const quiz = typeof quizResult === 'string' ? quizResult : quizResult.quiz;
     const level = typeof quizResult === 'string' ? null : quizResult.level;
+    const part = typeof quizResult === 'string' ? null : quizResult.part;
 
     try {
-        const textMatch = quiz.match(isEnglish ? /EN:\s*(.+)/ : /JP:\s*(.+)/);
-        const question = textMatch ? textMatch[1].trim() : (isEnglish ? 'English paragraph' : 'Japanese paragraph');
+        // Multi-line safe extraction — captures everything from passage marker up to QUESTION: or A)
+        const passageRegex = isEnglish
+            ? /EN:\s*([\s\S]+?)(?=\n(?:QUESTION:|A\)))/
+            : /JP:\s*([\s\S]+?)(?=\nA\))/;
+        const textMatch = quiz.match(passageRegex);
+        const passage = textMatch ? textMatch[1].trim() : (isEnglish ? 'English text' : 'Japanese passage');
 
-        const levelSuffix = level ? ` · ${level}` : '';
-        const header = `@everyone **Weekly ${isEnglish ? 'English ' : ''}Quiz${levelSuffix}**\n${question}`;
+        const questionMatch = isEnglish && part === '7' ? quiz.match(/QUESTION:\s*(.+)/) : null;
+        const comprehensionQuestion = questionMatch ? questionMatch[1].trim() : null;
 
-        try {
-            const audioBuffer = await getTTSBufferForLongText(question, isEnglish ? 'en-US' : 'ja-JP');
-            const audioAttachment = new AttachmentBuilder(audioBuffer, { name: `${isEnglish ? 'english-' : ''}quiz-audio.mp3` });
-            await channel.send({
-                content: header,
-                files: [audioAttachment]
-            });
-        } catch (ttsError) {
-            console.error('TTS error, sending without audio:', ttsError);
-            await channel.send({
-                content: header
-            });
+        const partSuffix = part ? ` · Part ${part}` : '';
+        const levelSuffix = level
+            ? (isEnglish ? ` · ${level}-band` : ` · ${level}`)
+            : '';
+        const quizLabel = isEnglish ? 'TOEIC' : 'Japanese';
+
+        const displayBody = comprehensionQuestion
+            ? `${passage}\n\n**Q:** ${comprehensionQuestion}`
+            : passage;
+        const header = `@everyone **Weekly ${quizLabel} Quiz${partSuffix}${levelSuffix}**\n${displayBody}`;
+
+        // TOEIC Part 5 is a fill-in-the-blank — TTS reading "____" out loud is awkward, so skip audio there.
+        const sendAudio = !(isEnglish && part === '5');
+        if (sendAudio) {
+            try {
+                const audioBuffer = await getTTSBufferForLongText(passage, isEnglish ? 'en-US' : 'ja-JP');
+                const audioAttachment = new AttachmentBuilder(audioBuffer, { name: `${isEnglish ? 'english-' : ''}quiz-audio.mp3` });
+                await channel.send({ content: header, files: [audioAttachment] });
+            } catch (ttsError) {
+                console.error('TTS error, sending without audio:', ttsError);
+                await channel.send({ content: header });
+            }
+        } else {
+            await channel.send({ content: header });
         }
 
         const options = [];
@@ -127,12 +210,12 @@ async function sendQuiz(quizResult, channel, quizData, isEnglish = false) {
         }
 
         const optionLabels = ['a', 'b', 'c', 'd'];
-        let optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
+        const optionsText = options.map((opt, idx) => `${optionLabels[idx]}. ${opt}`).join('\n');
         await channel.send(`**Options:**\n${optionsText}`);
 
         const pollMessage = await channel.send({
             poll: {
-                question: { text: isEnglish ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
+                question: { text: isEnglish ? POLL_QUESTION_EN : POLL_QUESTION_JP },
                 answers: optionLabels.map(letter => ({ text: letter }))
             }
         });
@@ -167,7 +250,7 @@ async function revealPreviousQuizAnswer(quizData, quizType) {
             await data.channel.send(`✅ **Correct answer:** ${data.answer}\n${data.explanation}`);
             await data.pollMessage.edit({
                 poll: {
-                    question: { text: quizType === 'english' ? 'この英文の意味として最も適切なのは？' : 'What is the most accurate English meaning?' },
+                    question: { text: quizType === 'english' ? POLL_QUESTION_EN : POLL_QUESTION_JP },
                     answers: data.pollMessage.poll.answers,
                     duration: 0
                 }
