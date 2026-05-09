@@ -11,6 +11,14 @@ const JLPT_LEVEL_GUIDANCE = {
     N1: 'JLPT N1 (advanced): use advanced vocabulary (~10000 words), idiomatic, literary, or formal expressions, and complex grammar including rare patterns (~2000 kanji). Sentences should reflect native-level nuance and abstraction.'
 };
 
+const JLPT_PASSAGE_LENGTH = {
+    N5: '1-2 short sentences (roughly 30-60 Japanese characters total), matching real JLPT N5 短文',
+    N4: '2-3 short sentences (roughly 60-120 characters total), matching real JLPT N4 短文',
+    N3: '3-4 sentences (roughly 150-250 characters total), matching real JLPT N3 短文',
+    N2: '4-6 sentences (roughly 300-500 characters total), matching real JLPT N2 短文/中文',
+    N1: '6-8 sentences (roughly 500-800 characters total), matching real JLPT N1 短文/中文'
+};
+
 function pickRandomJlptLevel() {
     const levels = ['N5', 'N4', 'N3', 'N2', 'N1'];
     return levels[Math.floor(Math.random() * levels.length)];
@@ -45,33 +53,35 @@ D) <option 4 in Japanese>
 Answer: <A/B/C/D>
 Explanation: <why in Japanese, including key nuances and why other options are incorrect>
 ` :
-        `You are a Japanese language comprehension quiz generator.
-Generate a Japanese paragraph (3-4 sentences) about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
+        `You are a Japanese language comprehension quiz generator that produces questions in the style of the real JLPT (Japanese-Language Proficiency Test) reading section.
+
+Generate a Japanese passage about a different everyday situation each time (e.g., shopping, school, travel, weather, hobbies, family, work, etc.). Avoid repeating the same topic as previous quizzes.
 
 Target proficiency level: ${level} — ${JLPT_LEVEL_GUIDANCE[level]}
+Passage length: ${JLPT_PASSAGE_LENGTH[level]}.
 Strictly match the vocabulary, kanji, and grammar to this level. Do NOT use vocabulary or grammar above this level.
 
-The paragraph should:
-1. Include subtle nuances, implications, or cultural context that require deeper understanding (calibrated to the level)
-2. Use a mix of grammar patterns and vocabulary appropriate for ${level} learners
-3. Have some ambiguity or room for interpretation in certain aspects
+The passage should:
+1. Be clear and explicit — JLPT passages test whether the reader parsed the grammar and vocabulary, not whether they can guess between plausible interpretations
+2. Use grammar patterns and vocabulary appropriate for ${level} learners
+3. Have a single correct understanding (no intentional ambiguity)
 
-Then provide 4 English options (A, B, C, D) for its meaning. The options should:
-1. All be plausible interpretations of the text
-2. Differ in subtle ways (e.g., timing, speaker's attitude, implied meaning, cultural context)
-3. Include at least one option that's partially correct but misses a key nuance
-4. Have only one option that captures all aspects of the text accurately
+Then provide 4 English options (A, B, C, D) for the passage's meaning. The options must follow real JLPT conventions:
+1. Exactly one option is unambiguously correct and faithfully reflects the passage
+2. The 3 wrong options must each contain ONE concrete, identifiable contradiction with the passage — for example: wrong actor, wrong time, wrong location, wrong outcome, wrong reason, wrong quantity, or a negation/affirmation reversal
+3. Wrong options must NOT be "almost right" or differ only in subtle nuance, tone, or cultural implication. A reader who understood the passage should be able to eliminate each wrong option by pointing to a specific word or phrase that contradicts it
+4. All four options should be similar in length and written in natural English
 
-After the options, state the correct answer and a detailed explanation that highlights the key nuances and why the other options are incorrect.
+After the options, state the correct answer and an explanation. For each wrong option, name the specific word/phrase in the passage that contradicts it.
 
 Format:
-JP: <paragraph>
+JP: <passage>
 A) <option 1>
 B) <option 2>
 C) <option 3>
 D) <option 4>
 Answer: <A/B/C/D>
-Explanation: <why, including key nuances and why other options are incorrect>
+Explanation: <why the correct answer is right, then for each wrong option the specific contradiction>
 `;
 
     const completion = await openai.chat.completions.create({
