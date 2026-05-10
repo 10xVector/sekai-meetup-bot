@@ -179,7 +179,7 @@ async function sendQuiz(quizResult, channel, quizData, isEnglish = false) {
 
         const partSuffix = part ? ` · Part ${part}` : '';
         const levelSuffix = level
-            ? (isEnglish ? ` · ${level}-band` : ` · ${level}`)
+            ? (isEnglish ? ` · ${level}-band` : ` · JLPT ${level}`)
             : '';
         const quizLabel = isEnglish ? 'TOEIC' : 'Japanese';
 
