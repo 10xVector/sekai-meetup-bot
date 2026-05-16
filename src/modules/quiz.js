@@ -83,7 +83,7 @@ B) <option 2>
 C) <option 3>
 D) <option 4>
 Answer: <A/B/C/D>
-Explanation: <why the correct answer is right, then for each wrong option the specific error>
+Explanation: <Write this section in Japanese (the audience is Japanese learners). Explain why the correct answer is right, then for each wrong option name the specific grammatical or semantic error. You may quote English words or phrases from the sentence/options verbatim.>
 `;
     } else if (isEnglish) {
         quizPrompt = `You are a TOEIC quiz generator producing Part 7 (Reading Comprehension) questions for Japanese learners of English.
@@ -115,7 +115,7 @@ B) <option 2>
 C) <option 3>
 D) <option 4>
 Answer: <A/B/C/D>
-Explanation: <why the correct answer is right, then for each wrong option the specific contradiction>
+Explanation: <Write this section in Japanese (the audience is Japanese learners). Explain why the correct answer is right, then for each wrong option name the specific contradiction. You may quote English words or phrases from the passage/options verbatim.>
 `;
     } else {
         quizPrompt = `You are a Japanese language comprehension quiz generator that produces questions in the style of the real JLPT (Japanese-Language Proficiency Test) reading section.
